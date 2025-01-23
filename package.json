@@ -1,0 +1,50 @@
+{
+  "name": "webserial-core",
+  "description": "Webserial Core to easy connections with serial devices",
+  "version": "1.0.0",
+  "type": "module",
+  "license": "MIT",
+  "author": "danidoble",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/danidoble/webserial-core.git"
+  },
+  "bugs": {
+    "url": "https://github.com/danidoble/webserial-core/issues"
+  },
+  "homepage": "https://github.com/danidoble/webserial-core#readme",
+  "keywords": [
+    "webserial",
+    "serial",
+    "core",
+    "web"
+  ],
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/webserial-core.umd.cjs",
+  "module": "./dist/webserial-core.js",
+  "exports": {
+    ".": {
+      "import": "./dist/webserial-core.js",
+      "require": "./dist/webserial-core.umd.cjs"
+    }
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "prettier --write ./lib/**/*.ts && tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint --ext .ts ./lib",
+    "format": "prettier --write ./lib/**/*.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.18.0",
+    "eslint": "^9.18.0",
+    "globals": "^15.14.0",
+    "prettier": "3.4.2",
+    "typescript": "~5.6.3",
+    "typescript-eslint": "^8.21.0",
+    "uuid": "^11.0.5",
+    "vite": "^6.0.11"
+  }
+}
