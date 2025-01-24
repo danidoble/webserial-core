@@ -1,10 +1,15 @@
 import { Core } from "./Core.ts";
+import { Dispatcher } from "./Dispatcher.ts";
 
-interface IDevices {
-  [key: string]: [];
+interface IDevice {
+  [key: string]: Core;
 }
 
-export class Devices{
+interface IDevices {
+  [key: string]: IDevice;
+}
+
+export class Devices extends Dispatcher {
   static instance: Devices;
   static devices: IDevices = {};
 
@@ -15,62 +20,58 @@ export class Devices{
     throw error;
   }
 
-  static add(device: Core) {
+  static add(device: Core): number {
     const type = device.typeDevice;
     if (typeof Devices.devices[type] === "undefined") {
-      Devices.devices[type] = [];
+      Devices.devices[type] = {};
     }
 
-    const id = device.uuid;
+    const id: string = device.uuid;
 
-    if (typeof Devices.devices[type] === "undefined")
-      return Devices.typeError(type);
+    if (typeof Devices.devices[type] === "undefined") Devices.typeError(type);
 
     this.instance.dispatch("change", Devices.devices);
 
-    if (Devices.devices[type][id]) return;
+    if (Devices.devices[type][id]) {
+      throw new Error(`Device with id ${id} already exists`);
+    }
 
     Devices.devices[type][id] = device;
 
     this.instance.dispatch("change", Devices.devices);
-    return Devices.devices[type].indexOf(device);
+    return Object.keys(Devices.devices[type]).indexOf(id);
   }
 
-  static get(type, id) {
-    if (typeof Devices.devices[type] === "undefined")
-      return Devices.typeError(type);
+  static get(type: string, id: string): Core {
+    if (typeof Devices.devices[type] === "undefined") Devices.typeError(type);
 
     return Devices.devices[type][id];
   }
 
-  static getAll(type = null) {
+  static getAll(type: string | null = null): IDevice | IDevices {
     if (type === null) return Devices.devices;
 
-    if (typeof Devices.devices[type] === "undefined")
-      return Devices.typeError(type);
+    if (typeof Devices.devices[type] === "undefined") Devices.typeError(type);
 
     return Devices.devices[type];
   }
 
-  static getList() {
+  static getList(): Core[] {
     // get all devices in list mode no matter the type
     // by some reason the array is empty so we need to use Object.values and map
-    const devices = Object.values(Devices.devices);
+    const devices: IDevice[] = Object.values(Devices.devices);
     return devices
-      .map((device) => {
+      .map((device: IDevice): Core[] => {
         return Object.values(device);
       })
       .flat();
   }
 
-  static getCustom(type, device_number = 1) {
-    if (typeof Devices.devices[type] === "undefined")
-      return Devices.typeError(type);
+  static getCustom(type: string, device_number: number = 1): Core | null {
+    if (typeof Devices.devices[type] === "undefined") Devices.typeError(type);
 
     const devices = Object.values(Devices.devices[type]);
-    return (
-      devices.find((device) => device.deviceNumber === device_number) ?? null
-    );
+    return devices.find((device) => device.deviceNumber === device_number) ?? null;
   }
 }
 

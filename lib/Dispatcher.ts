@@ -45,10 +45,7 @@ export class Dispatcher extends EventTarget implements IDispatcher {
   }
 
   on(type: string, callback: EventListenerOrEventListenerObject) {
-    if (
-      typeof this.__listeners__[type] !== "undefined" &&
-      !this.__listeners__[type]
-    ) {
+    if (typeof this.__listeners__[type] !== "undefined" && !this.__listeners__[type]) {
       this.__listeners__[type] = true;
     }
 

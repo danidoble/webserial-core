@@ -38,10 +38,12 @@
     "format": "prettier --write ./lib/**/*.ts"
   },
   "devDependencies": {
-    "@eslint/js": "^9.18.0",
-    "eslint": "^9.18.0",
+    "@eslint/js": "^9.19.0",
+    "@types/w3c-web-serial": "^1.0.7",
+    "eslint": "^9.19.0",
     "globals": "^15.14.0",
     "prettier": "3.4.2",
+    "puppeteer": "^24.1.1",
     "typescript": "~5.6.3",
     "typescript-eslint": "^8.21.0",
     "uuid": "^11.0.5",
