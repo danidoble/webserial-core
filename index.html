@@ -2,12 +2,34 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Webserial Core</title>
+    <script src="tests/connection.arduino.ts" type="module"></script>
   </head>
-  <body>
-    <div id="app"></div>
-<!--    <script type="module" src="/lib/main.ts"></script>-->
+  <body class="bg-neutral-950 text-white p-4 w-full">
+
+  <div class="webserial w-full max-w-xl mx-auto grid grid-cols-1 gap-y-4">
+    <div class="my-6"></div>
+    <button id="connect" class="hidden px-4 py-3 bg-gray-800 rounded-lg">Connect to serial</button>
+
+    <div id="need-permission" class="hidden p-4 bg-rose-900 rounded-lg">
+      Woooah! It seems that you need to give permission to access the serial port.
+      Please, click the button 'Connect to serial' to try again.
+    </div>
+
+    <div id="disconnected" class="hidden p-4 bg-neutral-900 w-full">
+      The machine is disconnected. Please, check the connection.
+    </div>
+
+    <div id="unsupported" class="hidden p-4 bg-orange-700 w-full absolute bottom-0 left-0">
+      This browser does not support the WebSerial API. Please, use a compatible browser.
+    </div>
+
+    <div id="log" class="bg-neutral-800 p-4 rounded-lg">
+      Log: <br>
+    </div>
+  </div>
+
+  <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio,container-queries"></script>
   </body>
 </html>

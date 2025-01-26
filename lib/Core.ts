@@ -15,9 +15,12 @@ interface DeviceData {
   listen_on_port: number | null;
 }
 
+type SerialResponseAs = "hex" | "uint8" | "string" | "arraybuffer";
+
 interface SerialResponse {
   length: number | null;
   buffer: Uint8Array;
+  as: SerialResponseAs;
 }
 
 interface QueueData {
@@ -57,7 +60,7 @@ interface InternalIntervals {
   reconnection: number;
 }
 
-type Internal = {
+export type Internal = {
   auto_response: boolean;
   device_number: number;
   aux_port_connector: number;
@@ -85,7 +88,109 @@ const defaultConfigPort: SerialOptions = {
   flowControl: "none",
 };
 
-export class Core extends Dispatcher {
+interface CustomCode {
+  code: Array<string>;
+}
+
+interface ICore {
+  lastAction: string | null;
+
+  set listenOnChannel(channel: string | number);
+
+  set serialFilters(filters: SerialPortFilter[]);
+
+  get serialFilters(): SerialPortFilter[];
+
+  set serialConfigPort(config_port: SerialOptions);
+
+  get serialConfigPort(): SerialOptions;
+
+  get isConnected(): boolean;
+
+  get isDisconnected(): boolean;
+
+  get deviceNumber(): number;
+
+  get uuid(): string;
+
+  get typeDevice(): string;
+
+  get queue(): QueueData[];
+
+  timeout(bytes: string[], event: string): Promise<void>;
+
+  disconnect(detail?: null): Promise<void>;
+
+  connect(): Promise<string>;
+
+  serialDisconnect(): Promise<void>;
+
+  serialPortsSaved(ports: SerialPort[]): Promise<void>;
+
+  serialErrors(error: unknown | Error | DOMException): void;
+
+  serialConnect(): Promise<void>;
+
+  serialForget(): Promise<boolean>;
+
+  decToHex(dec: number | string): string;
+
+  hexToDec(hex: string): number;
+
+  hexMaker(val?: string, min?: number): string;
+
+  add0x(bytes: string[]): string[];
+
+  bytesToHex(bytes: string[]): string[];
+
+  appendToQueue(arr: string[], action: string): Promise<void>;
+
+  serialSetConnectionConstant(listen_on_port?: number): never[] | string[];
+
+  serialMessage(hex: string[]): void;
+
+  serialCorruptMessage(code: string[], data: never | null): void;
+
+  clearSerialQueue(): void;
+
+  sumHex(arr: string[]): string;
+
+  softReload(): void;
+
+  sendConnect(): Promise<void>;
+
+  sendCustomCode({ code }: { code: CustomCode }): Promise<void>;
+
+  stringToArrayHex(string: string): string[];
+
+  stringToArrayBuffer(string: string, end: string): ArrayBufferLike;
+
+  parseStringToBytes(string: string, end: string): string[];
+
+  parseUint8ToHex(array: Uint8Array): string[];
+
+  parseHexToUint8(array: string[]): Uint8Array;
+
+  stringArrayToUint8Array(strings: string[]): Uint8Array;
+
+  parseUint8ArrayToString(array: string[]): string;
+
+  parseStringToTextEncoder(string: string, end: string): Uint8Array;
+
+  hexToAscii(hex: string | number): string;
+
+  asciiToHex(asciiString: string): string;
+
+  getResponseAsArrayBuffer(): void;
+
+  getResponseAsArrayHex(): void;
+
+  getResponseAsUint8Array(): void;
+
+  getResponseAsString(): void;
+}
+
+export class Core extends Dispatcher implements ICore {
   protected __internal__: Internal = {
     auto_response: false,
     device_number: 1,
@@ -103,6 +208,7 @@ export class Core extends Dispatcher {
       response: {
         length: null,
         buffer: new Uint8Array([]),
+        as: "hex",
       },
       reader: null,
       input_done: null,
@@ -180,19 +286,11 @@ export class Core extends Dispatcher {
     this.__internal__.serial.bytes_connection = this.serialSetConnectionConstant(channel);
   }
 
-  /**
-   * @deprecated Use listenOnChannel instead
-   * @param channel
-   */
-  set listenOnPort(channel: string | number) {
-    this.listenOnChannel = channel;
-  }
-
   get lastAction(): string | null {
     return this.__internal__.serial.last_action;
   }
 
-  get listenOnPort(): number {
+  get listenOnChannel(): number {
     return this.__internal__.device.listen_on_port ?? 1;
   }
 
@@ -297,7 +395,7 @@ export class Core extends Dispatcher {
       const output_stream: WritableStream<Uint8Array> | null = this.__internal__.serial.output_stream;
       if (reader) {
         const reader_promise: Promise<void> = reader.cancel();
-        await reader_promise.catch((err: any): void => this.serialErrors(err));
+        await reader_promise.catch((err: unknown): void => this.serialErrors(err));
         await this.__internal__.serial.input_done;
       }
 
@@ -309,7 +407,7 @@ export class Core extends Dispatcher {
       if (this.__internal__.serial.connected && this.__internal__.serial && this.__internal__.serial.port) {
         await this.__internal__.serial.port.close();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       this.serialErrors(err);
     } finally {
       this.__internal__.serial.reader = null;
@@ -321,18 +419,6 @@ export class Core extends Dispatcher {
       this.__internal__.serial.connected = false;
       this.__internal__.serial.port = null;
     }
-  }
-
-  private stringArrayToUint8Array(strings: string[]): Uint8Array {
-    const encoder = new TextEncoder();
-    const bytes: number[] = [];
-
-    strings.forEach((str: string): void => {
-      const encoded: Uint8Array = encoder.encode(str);
-      bytes.push(...encoded);
-    });
-
-    return new Uint8Array(bytes);
   }
 
   async #serialWrite(data: Array<string>): Promise<void> {
@@ -368,7 +454,18 @@ export class Core extends Dispatcher {
         serial_data.push(code[byte].toString().padStart(2, "0").toLowerCase());
       }
 
-      this.serialMessage(serial_data);
+      if (this.__internal__.serial.response.as === "hex") {
+        this.serialMessage(serial_data);
+      } else if (this.__internal__.serial.response.as === "uint8") {
+        this.serialMessage(this.parseHexToUint8(this.add0x(serial_data)));
+      } else if (this.__internal__.serial.response.as === "string") {
+        this.serialMessage(this.parseUint8ArrayToString(this.add0x(serial_data)));
+      } else {
+        const arraybuffer: ArrayBuffer = this.stringToArrayBuffer(
+          this.parseUint8ArrayToString(this.add0x(serial_data)),
+        );
+        this.serialMessage(arraybuffer);
+      }
     } else {
       this.serialCorruptMessage(code, data);
     }
@@ -377,9 +474,25 @@ export class Core extends Dispatcher {
     this.dispatch("internal:queue", {});
   }
 
+  getResponseAsArrayBuffer(): void {
+    this.__internal__.serial.response.as = "arraybuffer";
+  }
+
+  getResponseAsArrayHex(): void {
+    this.__internal__.serial.response.as = "hex";
+  }
+
+  getResponseAsUint8Array(): void {
+    this.__internal__.serial.response.as = "uint8";
+  }
+
+  getResponseAsString(): void {
+    this.__internal__.serial.response.as = "string";
+  }
+
   async #serialPortsFiltered(): Promise<SerialPort[]> {
     const filters: SerialPortFilter[] = this.serialFilters;
-    // @ts-ignore
+    // @ts-expect-error getPorts can use parameters
     const ports: SerialPort[] = await navigator.serial.getPorts({ filters });
     if (filters.length === 0) return ports;
 
@@ -410,7 +523,7 @@ export class Core extends Dispatcher {
     }
   }
 
-  serialErrors(error: Error | DOMException): void {
+  serialErrors(error: any): void {
     const err = error.toString().toLowerCase();
     switch (true) {
       case err.includes("must be handling a user gesture to show a permission request"):
@@ -469,7 +582,7 @@ export class Core extends Dispatcher {
   #appendBuffer(arraybuffer: Uint8Array | ArrayBuffer | null): void {
     if (arraybuffer) {
       const incoming: Uint8Array = this.__internal__.serial.response.buffer;
-      let tmp: Uint8Array = new Uint8Array(incoming.length + arraybuffer.byteLength);
+      const tmp: Uint8Array = new Uint8Array(incoming.length + arraybuffer.byteLength);
       tmp.set(incoming, 0);
       tmp.set(new Uint8Array(arraybuffer), incoming.length);
       this.__internal__.serial.response.buffer = tmp;
@@ -483,7 +596,7 @@ export class Core extends Dispatcher {
     }
 
     this.__internal__.serial.time_until_send_bytes = setTimeout((): void => {
-      let hex: string[] = [];
+      const hex: string[] = [];
       for (const byte in this.__internal__.serial.response.buffer) {
         hex.push(this.__internal__.serial.response.buffer[byte].toString(16));
       }
@@ -566,7 +679,7 @@ export class Core extends Dispatcher {
             await this.#slicedSerialLoop();
           }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         this.serialErrors(err);
       } finally {
         reader.releaseLock();
@@ -596,6 +709,7 @@ export class Core extends Dispatcher {
         throw new Error("No port selected by the user");
       }
       await port.open(this.serialConfigPort);
+      // eslint-disable-next-line @typescript-eslint/no-this-alias
       const this1: this = this;
       port.onconnect = (event: Event): void => {
         this1.dispatch("serial:connected", event);
@@ -626,7 +740,7 @@ export class Core extends Dispatcher {
         this.#serialGetResponse(["DD", "DD"], null);
       }
       await this.#readSerialLoop();
-    } catch (e: any) {
+    } catch (e: unknown) {
       this.serialErrors(e);
     }
   }
@@ -661,7 +775,7 @@ export class Core extends Dispatcher {
   }
 
   add0x(bytes: string[]): string[] {
-    let new_bytes: string[] = [];
+    const new_bytes: string[] = [];
     bytes.forEach((value: string, index: number): void => {
       new_bytes[index] = "0x" + value;
     });
@@ -696,6 +810,7 @@ export class Core extends Dispatcher {
   }
 
   #internalEvents(): void {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     const this1: this = this;
     this.on("internal:queue", async (): Promise<void> => {
       await this1.#runQueue();
@@ -705,6 +820,7 @@ export class Core extends Dispatcher {
   }
 
   #browserEvents(): void {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     const this1: this = this;
     navigator.serial.addEventListener("connect", async (): Promise<void> => {
       if (!this1.isDisconnected) return;
@@ -771,23 +887,23 @@ export class Core extends Dispatcher {
     this.__internal__.serial.bytes_connection = this.serialSetConnectionConstant(no_device);
   }
 
-  serialSetConnectionConstant(listen_on_port = 1): any {
+  serialSetConnectionConstant(listen_on_port = 1): never[] | string[] {
     throw new Error(`Method not implemented 'serialSetConnectionConstant' to listen on channel ${listen_on_port}`);
     // ... implement in subclass
-    return [];
+    // return [];
   }
 
-  serialMessage(hex: string[]): void {
-    throw new Error("Method not implemented 'serialMessage'");
+  serialMessage(hex: string[] | Uint8Array<ArrayBufferLike> | string | ArrayBuffer): void {
     // this.dispatch('serial:message', code);
     // ... implement in subclass
     console.log(hex);
+    throw new Error("Method not implemented 'serialMessage'");
   }
 
-  serialCorruptMessage(code: string[], data: any): void {
-    throw new Error("Method not implemented 'serialCorruptMessage'");
+  serialCorruptMessage(code: string[], data: never | null): void {
     // ... implement in subclass
     console.log(code, data);
+    throw new Error("Method not implemented 'serialCorruptMessage'");
   }
 
   #clearLastError(): void {
@@ -833,11 +949,16 @@ export class Core extends Dispatcher {
     await this.appendToQueue(this.__internal__.serial.bytes_connection, "connect");
   }
 
-  async sendCustomCode({ code = [] } = { code: [] }): Promise<void> {
-    if (code.length === 0) {
+  // @ts-expect-error code is required but can be empty
+  async sendCustomCode({ code = [] }: CustomCode = { code: [] }): Promise<void> {
+    if (code === null || code.length === 0) {
       throw new Error("No data to send");
     }
     await this.appendToQueue(code, "custom");
+  }
+
+  stringToArrayHex(string: string): string[] {
+    return Array.from(string).map((char: string): string => char.charCodeAt(0).toString(16));
   }
 
   stringToArrayBuffer(string: string, end: string = "\n"): ArrayBufferLike {
@@ -863,6 +984,16 @@ export class Core extends Dispatcher {
     return new Uint8Array(array.map((hexString: string): number => parseInt(hexString, 16)));
   }
 
+  stringArrayToUint8Array(strings: string[]): Uint8Array {
+    const bytes: number[] = [];
+    strings.forEach((str: string): void => {
+      const hex = str.replace("0x", "");
+      bytes.push(parseInt(hex, 16));
+    });
+
+    return new Uint8Array(bytes);
+  }
+
   parseUint8ArrayToString(array: string[]): string {
     const arrayUint8: Uint8Array = this.stringArrayToUint8Array(array as string[]);
     array = this.parseUint8ToHex(arrayUint8);
@@ -871,7 +1002,7 @@ export class Core extends Dispatcher {
   }
 
   hexToAscii(hex: string | number): string {
-    let hexString: string = hex.toString();
+    const hexString: string = hex.toString();
     let asciiString: string = "";
     for (let i: number = 0; i < hexString.length; i += 2) {
       asciiString += String.fromCharCode(parseInt(hexString.substring(i, 2), 16));

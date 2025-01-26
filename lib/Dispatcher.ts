@@ -3,10 +3,12 @@ import { SerialEvent } from "./SerialEvent.ts";
 type AvailableListener = { type: string; listening: boolean };
 type AvailableListeners = AvailableListener[];
 
-interface IDispatcher {
-  dispatch(type: string, data?: any): void;
+type DataType = string | number | boolean | object | null;
 
-  dispatchAsync(type: string, data?: any, ms?: number): void;
+interface IDispatcher {
+  dispatch(type: string, data?: DataType): void;
+
+  dispatchAsync(type: string, data?: DataType, ms?: number): void;
 
   on(type: string, callback: EventListener): void;
 
@@ -29,7 +31,7 @@ export class Dispatcher extends EventTarget implements IDispatcher {
   };
   __debug__: boolean = false;
 
-  dispatch(type: string, data: any = null) {
+  dispatch(type: string, data: DataType = null) {
     const event = new SerialEvent(type, { detail: data });
     this.dispatchEvent(event);
     if (this.__debug__) {
@@ -38,6 +40,7 @@ export class Dispatcher extends EventTarget implements IDispatcher {
   }
 
   dispatchAsync(type: string, data = null, ms = 100) {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     const this1 = this;
     setTimeout(() => {
       this1.dispatch(type, data);

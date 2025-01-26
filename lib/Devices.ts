@@ -20,6 +20,12 @@ export class Devices extends Dispatcher {
     throw error;
   }
 
+  static registerType(type: string): void {
+    if (typeof Devices.devices[type] === "undefined") {
+      Devices.devices[type] = {};
+    }
+  }
+
   static add(device: Core): number {
     const type = device.typeDevice;
     if (typeof Devices.devices[type] === "undefined") {
@@ -43,6 +49,10 @@ export class Devices extends Dispatcher {
   }
 
   static get(type: string, id: string): Core {
+    if (typeof Devices.devices[type] === "undefined") {
+      Devices.devices[type] = {};
+    }
+
     if (typeof Devices.devices[type] === "undefined") Devices.typeError(type);
 
     return Devices.devices[type][id];
@@ -50,7 +60,6 @@ export class Devices extends Dispatcher {
 
   static getAll(type: string | null = null): IDevice | IDevices {
     if (type === null) return Devices.devices;
-
     if (typeof Devices.devices[type] === "undefined") Devices.typeError(type);
 
     return Devices.devices[type];
@@ -65,6 +74,13 @@ export class Devices extends Dispatcher {
         return Object.values(device);
       })
       .flat();
+  }
+
+  static getByNumber(type: string, device_number: number): Core | null {
+    if (typeof Devices.devices[type] === "undefined") Devices.typeError(type);
+
+    const devices = Object.values(Devices.devices[type]);
+    return devices.find((device) => device.deviceNumber === device_number) ?? null;
   }
 
   static getCustom(type: string, device_number: number = 1): Core | null {
