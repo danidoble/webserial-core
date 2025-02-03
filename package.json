@@ -1,7 +1,7 @@
 {
   "name": "webserial-core",
   "description": "Webserial Core to easy connections with serial devices",
-  "version": "1.0.0",
+  "version": "0.0.0-development",
   "type": "module",
   "license": "MIT",
   "author": "danidoble",
@@ -20,7 +20,7 @@
     "web"
   ],
   "files": [
-    "dist"
+    "dist", "README.md"
   ],
   "main": "./dist/webserial-core.umd.cjs",
   "module": "./dist/webserial-core.js",
@@ -44,9 +44,13 @@
     "globals": "^15.14.0",
     "prettier": "3.4.2",
     "puppeteer": "^24.1.1",
+    "semantic-release": "^24.2.1",
     "typescript": "~5.7.3",
     "typescript-eslint": "^8.23.0",
     "uuid": "^11.0.5",
     "vite": "^6.0.11"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
