@@ -255,6 +255,10 @@ export class Core extends Dispatcher implements ICore {
   ) {
     super();
 
+    if (!("serial" in navigator)) {
+      throw new Error("Web Serial not supported");
+    }
+
     if (filters) {
       this.serialFilters = filters;
     }

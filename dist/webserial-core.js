@@ -4,7 +4,7 @@ var b = (r) => {
 };
 var O = (r, i, e) => i in r ? N(r, i, { enumerable: !0, configurable: !0, writable: !0, value: e }) : r[i] = e;
 var h = (r, i, e) => O(r, typeof i != "symbol" ? i + "" : i, e), H = (r, i, e) => i.has(r) || b("Cannot " + e);
-var m = (r, i, e) => i.has(r) ? b("Cannot add the same private member more than once") : i instanceof WeakSet ? i.add(r) : i.set(r, e);
+var w = (r, i, e) => i.has(r) ? b("Cannot add the same private member more than once") : i instanceof WeakSet ? i.add(r) : i.set(r, e);
 var l = (r, i, e) => (H(r, i, "access private method"), e);
 const _ = [];
 for (let r = 0; r < 256; ++r)
@@ -22,11 +22,11 @@ function F() {
   }
   return p(B);
 }
-const $ = typeof crypto < "u" && crypto.randomUUID && crypto.randomUUID.bind(crypto), w = { randomUUID: $ };
+const $ = typeof crypto < "u" && crypto.randomUUID && crypto.randomUUID.bind(crypto), m = { randomUUID: $ };
 function V(r, i, e) {
   var n;
-  if (w.randomUUID && !r)
-    return w.randomUUID();
+  if (m.randomUUID && !r)
+    return m.randomUUID();
   r = r || {};
   const t = r.random ?? ((n = r.rng) == null ? void 0 : n.call(r)) ?? F();
   if (t.length < 16)
@@ -77,7 +77,7 @@ function x(r = 100) {
     (i) => setTimeout(() => i(), r)
   );
 }
-function Q() {
+function W() {
   return "serial" in navigator;
 }
 const f = {
@@ -88,7 +88,7 @@ const f = {
   bufferSize: 32768,
   flowControl: "none"
 };
-var a, C, g, c, A, E, T, U, k, D, I, L, P, q, R, M;
+var a, C, g, c, E, A, T, U, k, D, I, L, P, q, R, M;
 class z extends S {
   constructor({
     filters: e = null,
@@ -102,7 +102,7 @@ class z extends S {
     device_listen_on_channel: 1
   }) {
     super();
-    m(this, a);
+    w(this, a);
     h(this, "__internal__", {
       auto_response: !1,
       device_number: 1,
@@ -151,6 +151,8 @@ class z extends S {
         reconnection: 0
       }
     });
+    if (!("serial" in navigator))
+      throw new Error("Web Serial not supported");
     e && (this.serialFilters = e), t && (this.serialConfigPort = t), n && l(this, a, R).call(this, n), s && ["number", "string"].includes(typeof s) && (this.listenOnChannel = s), l(this, a, I).call(this), l(this, a, L).call(this);
   }
   set listenOnChannel(e) {
@@ -206,7 +208,7 @@ class z extends S {
   }
   async connect() {
     return new Promise((e, t) => {
-      Q() || t("Web Serial not supported"), setTimeout(async () => {
+      W() || t("Web Serial not supported"), setTimeout(async () => {
         await x(499), await this.serialConnect(), this.isConnected ? e(`${this.typeDevice} device ${this.deviceNumber} connected`) : t(`${this.typeDevice} device ${this.deviceNumber} not connected`);
       }, 1);
     });
@@ -293,7 +295,7 @@ class z extends S {
   async serialConnect() {
     try {
       this.dispatch("serial:connecting", {});
-      const e = await l(this, a, A).call(this);
+      const e = await l(this, a, E).call(this);
       if (e.length > 0)
         await this.serialPortsSaved(e);
       else {
@@ -473,13 +475,13 @@ a = new WeakSet(), C = function(e) {
   } else
     this.serialCorruptMessage(e, t);
   this.__internal__.serial.queue.length !== 0 && this.dispatch("internal:queue", {});
-}, A = async function() {
+}, E = async function() {
   const e = this.serialFilters, t = await navigator.serial.getPorts({ filters: e });
   return e.length === 0 ? t : t.filter((s) => {
     const u = s.getInfo();
     return e.some((y) => u.usbProductId === y.usbProductId && u.usbVendorId === y.usbVendorId);
   }).filter((s) => !l(this, a, C).call(this, s));
-}, E = function(e) {
+}, A = function(e) {
   if (e) {
     const t = this.__internal__.serial.response.buffer, n = new Uint8Array(t.length + e.byteLength);
     n.set(t, 0), n.set(new Uint8Array(e), t.length), this.__internal__.serial.response.buffer = n;
@@ -537,7 +539,7 @@ a = new WeakSet(), C = function(e) {
           t.releaseLock(), this.__internal__.serial.keep_reading = !1, n = !1;
           break;
         }
-        l(this, a, E).call(this, s), this.__internal__.serial.response.length === null ? await l(this, a, T).call(this) : await l(this, a, U).call(this);
+        l(this, a, A).call(this, s), this.__internal__.serial.response.length === null ? await l(this, a, T).call(this) : await l(this, a, U).call(this);
       }
     } catch (n) {
       this.serialErrors(n);
