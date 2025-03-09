@@ -4,5 +4,5 @@ declare module "Dispatcher" {
   export function on(type: string, callback: EventListenerOrEventListenerObject): void;
   export function off(type: string, callback: EventListenerOrEventListenerObject): void;
   export function serialRegisterAvailableListener(type: string): void;
-  export function availableListeners(): AvailableListeners;
+  export function availableListeners(): { type: string; listening: boolean }[];
 }

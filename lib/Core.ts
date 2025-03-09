@@ -46,6 +46,7 @@ type SerialData = {
   filters: SerialPortFilter[];
   config_port: SerialOptions;
   queue: QueueData[];
+  auto_response: any;
 };
 
 interface TimeResponse {
@@ -223,6 +224,7 @@ export class Core extends Dispatcher implements ICore {
       filters: [],
       config_port: defaultConfigPort,
       queue: [],
+      auto_response: ["DD", "DD"],
     },
     device: {
       type: "unknown",
@@ -316,10 +318,23 @@ export class Core extends Dispatcher implements ICore {
   }
 
   get isConnected(): boolean {
+    const prevConnected = this.__internal__.serial.connected;
+    const connected = this.#checkIfPortIsOpen(this.__internal__.serial.port);
+    if (prevConnected && !connected) {
+      this.#disconnected({ error: "Port is closed, not readable or writable." });
+    }
+    this.__internal__.serial.connected = connected;
     return this.__internal__.serial.connected;
   }
 
   get isDisconnected(): boolean {
+    const prevConnected = this.__internal__.serial.connected;
+    const connected = this.#checkIfPortIsOpen(this.__internal__.serial.port);
+    if (!prevConnected && connected) {
+      this.dispatch("serial:connected");
+      Devices.$dispatchChange(this);
+    }
+    this.__internal__.serial.connected = connected;
     return !this.__internal__.serial.connected;
   }
 
@@ -370,10 +385,14 @@ export class Core extends Dispatcher implements ICore {
 
   async disconnect(detail = null): Promise<void> {
     await this.serialDisconnect();
+    this.#disconnected(detail);
+  }
+
+  #disconnected(detail: object | null = null): void {
     this.__internal__.serial.connected = false;
     this.__internal__.aux_port_connector = 0;
     this.dispatch("serial:disconnected", detail);
-    Devices.instance.dispatch("change");
+    Devices.$dispatchChange(this);
   }
 
   async connect(): Promise<string> {
@@ -428,10 +447,12 @@ export class Core extends Dispatcher implements ICore {
 
   async #serialWrite(data: Array<string>): Promise<void> {
     const port: SerialPort | null = this.__internal__.serial.port;
-    if (!port || !port.readable || !port.writable) {
-      throw new Error("The port is closed or is not writable");
+    if (!port || (port && (!port.readable || !port.writable))) {
+      this.#disconnected({ error: "Port is closed, not readable or writable." });
+      throw new Error("The port is closed or is not readable/writable");
     }
     const bytes = this.stringArrayToUint8Array(data);
+    if (port.writable === null) return; // never happens, it's already checked, but to suppress TS error
     const writer: WritableStreamDefaultWriter<Uint8Array> = port.writable.getWriter();
     await writer.write(bytes);
     writer.releaseLock();
@@ -439,11 +460,13 @@ export class Core extends Dispatcher implements ICore {
 
   #serialGetResponse(code: string[] = [], data = null) {
     if (code && code.length > 0) {
-      if (!this.__internal__.serial.connected) {
+      const auxPrevConnected: boolean = this.__internal__.serial.connected;
+      this.__internal__.serial.connected = this.#checkIfPortIsOpen(this.__internal__.serial.port);
+      if (!auxPrevConnected && this.__internal__.serial.connected) {
         this.dispatch("serial:connected");
-        Devices.instance.dispatch("change");
+        Devices.$dispatchChange(this);
       }
-      this.__internal__.serial.connected = true;
+
       if (this.__internal__.interval.reconnection) {
         clearInterval(this.__internal__.interval.reconnection);
         this.__internal__.interval.reconnection = 0;
@@ -534,13 +557,15 @@ export class Core extends Dispatcher implements ICore {
       case err.includes("must be handling a user gesture to show a permission request"):
       case err.includes("the port is closed."):
       case err.includes("the port is closed or is not writable"):
+      case err.includes("the port is closed or is not readable"):
+      case err.includes("the port is closed or is not readable/writable"):
       case err.includes("select another port please"):
       case err.includes("no port selected by the user"):
       case err.includes(
         "this readable stream reader has been released and cannot be used to cancel its previous owner stream",
       ):
         this.dispatch("serial:need-permission", {});
-        Devices.instance.dispatch("change");
+        Devices.$dispatchChange(this);
         break;
       case err.includes("the port is already open."):
       case err.includes("failed to open serial port"):
@@ -568,7 +593,7 @@ export class Core extends Dispatcher implements ICore {
         break;
       case err.includes("the device has been lost"):
         this.dispatch("serial:lost", {});
-        Devices.instance.dispatch("change");
+        Devices.$dispatchChange(this);
         // dispatch event
         break;
       case err.includes("navigator.serial is undefined"):
@@ -717,8 +742,9 @@ export class Core extends Dispatcher implements ICore {
       // eslint-disable-next-line @typescript-eslint/no-this-alias
       const this1: this = this;
       port.onconnect = (event: Event): void => {
+        console.log(event);
         this1.dispatch("serial:connected", event);
-        Devices.instance.dispatch("change");
+        Devices.$dispatchChange(this);
         if (this1.__internal__.serial.queue.length > 0) {
           this1.dispatch("internal:queue", {});
         }
@@ -742,7 +768,7 @@ export class Core extends Dispatcher implements ICore {
       });
 
       if (this.__internal__.auto_response) {
-        this.#serialGetResponse(["DD", "DD"], null);
+        this.#serialGetResponse(this.__internal__.serial.auto_response, null);
       }
       await this.#readSerialLoop();
     } catch (e: unknown) {
@@ -835,10 +861,7 @@ export class Core extends Dispatcher implements ICore {
 
   async #runQueue(): Promise<void> {
     if (!this.#checkIfPortIsOpen(this.__internal__.serial.port)) {
-      this.__internal__.serial.connected = false;
-      this.__internal__.aux_port_connector = 0;
-      this.dispatch("serial:disconnected", { error: "Port is closed, not readable or writable." });
-      Devices.instance.dispatch("change");
+      this.#disconnected({ error: "Port is closed, not readable or writable." });
       await this.serialConnect();
       return;
     }
@@ -868,7 +891,7 @@ export class Core extends Dispatcher implements ICore {
     });
 
     if (this.__internal__.auto_response) {
-      this.#serialGetResponse(["DD", "DD"], null);
+      this.#serialGetResponse(this.__internal__.serial.auto_response, null);
     }
     const copy_queue: QueueData[] = [...this.__internal__.serial.queue];
     this.__internal__.serial.queue = copy_queue.splice(1);
@@ -1026,5 +1049,9 @@ export class Core extends Dispatcher implements ICore {
       hexArray.push(hex);
     }
     return hexArray.join("");
+  }
+
+  $checkAndDispatchConnection(): boolean {
+    return this.isConnected;
   }
 }

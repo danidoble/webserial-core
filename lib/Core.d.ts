@@ -112,4 +112,6 @@ declare class Core {
   getResponseAsUint8Array(): void;
 
   getResponseAsString(): void;
+
+  $checkAndDispatchConnection(): boolean;
 }

@@ -13,6 +13,23 @@ export class Devices extends Dispatcher {
   static instance: Devices;
   static devices: IDevices = {};
 
+  constructor() {
+    super();
+
+    const availableListeners: string[] = ["change"];
+
+    availableListeners.forEach((event: string): void => {
+      this.serialRegisterAvailableListener(event);
+    });
+  }
+
+  static $dispatchChange(device: Core | null = null): void {
+    if (device) {
+      device.$checkAndDispatchConnection();
+    }
+    Devices.instance.dispatch("change", { devices: Devices.devices, dispatcher: device });
+  }
+
   static typeError(type: string): void {
     const error = new Error();
     error.message = `Type ${type} is not supported`;
@@ -36,15 +53,13 @@ export class Devices extends Dispatcher {
 
     if (typeof Devices.devices[type] === "undefined") Devices.typeError(type);
 
-    this.instance.dispatch("change", Devices.devices);
-
     if (Devices.devices[type][id]) {
       throw new Error(`Device with id ${id} already exists`);
     }
 
     Devices.devices[type][id] = device;
 
-    this.instance.dispatch("change", Devices.devices);
+    Devices.$dispatchChange(device);
     return Object.keys(Devices.devices[type]).indexOf(id);
   }
 
