@@ -131,7 +131,7 @@ const b = {
   bufferSize: 32768,
   flowControl: "none"
 };
-var r, p, f, y, u, E, T, U, k, D, L, P, I, q, $, R, M;
+var r, p, f, y, u, E, T, U, k, D, L, P, I, $, q, R, M;
 class G extends A {
   constructor({
     filters: e = null,
@@ -243,7 +243,7 @@ class G extends A {
     return this.__internal__.serial.queue;
   }
   async timeout(e, t) {
-    this.__internal__.last_error.message = "Operation response timed out.", this.__internal__.last_error.action = t, this.__internal__.last_error.code = e, this.__internal__.timeout.until_response && (clearTimeout(this.__internal__.timeout.until_response), this.__internal__.timeout.until_response = 0), t === "connect" ? (this.__internal__.serial.connected = !1, this.dispatch("serial:reconnect", {})) : t === "connection:start" && (await this.serialDisconnect(), this.__internal__.serial.connected = !1, this.__internal__.aux_port_connector += 1, await this.serialConnect()), this.dispatch("serial:timeout", {
+    this.__internal__.last_error.message = "Operation response timed out.", this.__internal__.last_error.action = t, this.__internal__.last_error.code = e, this.__internal__.timeout.until_response && (clearTimeout(this.__internal__.timeout.until_response), this.__internal__.timeout.until_response = 0), t === "connect" ? (this.__internal__.serial.connected = !1, this.dispatch("serial:reconnect", {}), c.$dispatchChange(this)) : t === "connection:start" && (await this.serialDisconnect(), this.__internal__.serial.connected = !1, this.__internal__.aux_port_connector += 1, c.$dispatchChange(this), await this.serialConnect()), this.dispatch("serial:timeout", {
       ...this.__internal__.last_error,
       bytes: e,
       action: t
@@ -266,7 +266,7 @@ class G extends A {
     } catch (e) {
       this.serialErrors(e);
     } finally {
-      this.__internal__.serial.reader = null, this.__internal__.serial.input_done = null, this.__internal__.serial.output_stream = null, this.__internal__.serial.output_done = null, this.__internal__.serial.connected = !1, this.__internal__.serial.port = null;
+      this.__internal__.serial.reader = null, this.__internal__.serial.input_done = null, this.__internal__.serial.output_stream = null, this.__internal__.serial.output_done = null, this.__internal__.serial.connected = !1, this.__internal__.serial.port = null, c.$dispatchChange(this);
     }
   }
   getResponseAsArrayBuffer() {
@@ -512,7 +512,7 @@ r = new WeakSet(), p = function(e) {
 }, u = function(e = [], t = null) {
   if (e && e.length > 0) {
     const n = this.__internal__.serial.connected;
-    this.__internal__.serial.connected = l(this, r, p).call(this, this.__internal__.serial.port), !n && this.__internal__.serial.connected && (this.dispatch("serial:connected"), c.$dispatchChange(this)), this.__internal__.interval.reconnection && (clearInterval(this.__internal__.interval.reconnection), this.__internal__.interval.reconnection = 0), this.__internal__.timeout.until_response && (clearTimeout(this.__internal__.timeout.until_response), this.__internal__.timeout.until_response = 0);
+    this.__internal__.serial.connected = l(this, r, p).call(this, this.__internal__.serial.port), c.$dispatchChange(this), !n && this.__internal__.serial.connected && this.dispatch("serial:connected"), this.__internal__.interval.reconnection && (clearInterval(this.__internal__.interval.reconnection), this.__internal__.interval.reconnection = 0), this.__internal__.timeout.until_response && (clearTimeout(this.__internal__.timeout.until_response), this.__internal__.timeout.until_response = 0);
     const a = [];
     for (const h in e)
       a.push(e[h].toString().padStart(2, "0").toLowerCase());
@@ -629,15 +629,15 @@ r = new WeakSet(), p = function(e) {
   const e = this;
   this.on("internal:queue", async () => {
     var t;
-    await l(t = e, r, $).call(t);
-  }), l(this, r, q).call(this);
-}, q = function() {
+    await l(t = e, r, q).call(t);
+  }), l(this, r, $).call(this);
+}, $ = function() {
   const e = this;
   navigator.serial.addEventListener("connect", async () => {
     e.isDisconnected && await e.serialConnect().catch(() => {
     });
   });
-}, $ = async function() {
+}, q = async function() {
   if (!l(this, r, p).call(this, this.__internal__.serial.port)) {
     l(this, r, f).call(this, { error: "Port is closed, not readable or writable." }), await this.serialConnect();
     return;

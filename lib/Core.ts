@@ -369,10 +369,12 @@ export class Core extends Dispatcher implements ICore {
     if (event === "connect") {
       this.__internal__.serial.connected = false;
       this.dispatch("serial:reconnect", {});
+      Devices.$dispatchChange(this);
     } else if (event === "connection:start") {
       await this.serialDisconnect();
       this.__internal__.serial.connected = false;
       this.__internal__.aux_port_connector += 1;
+      Devices.$dispatchChange(this);
       await this.serialConnect();
     }
 
@@ -442,6 +444,7 @@ export class Core extends Dispatcher implements ICore {
 
       this.__internal__.serial.connected = false;
       this.__internal__.serial.port = null;
+      Devices.$dispatchChange(this);
     }
   }
 
@@ -462,9 +465,9 @@ export class Core extends Dispatcher implements ICore {
     if (code && code.length > 0) {
       const auxPrevConnected: boolean = this.__internal__.serial.connected;
       this.__internal__.serial.connected = this.#checkIfPortIsOpen(this.__internal__.serial.port);
+      Devices.$dispatchChange(this);
       if (!auxPrevConnected && this.__internal__.serial.connected) {
         this.dispatch("serial:connected");
-        Devices.$dispatchChange(this);
       }
 
       if (this.__internal__.interval.reconnection) {
