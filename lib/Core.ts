@@ -22,6 +22,8 @@ interface SerialResponse {
   length: number | null;
   buffer: Uint8Array;
   as: SerialResponseAs;
+  replacer: RegExp | string;
+  limiter: null | string | RegExp;
 }
 
 interface QueueData {
@@ -211,6 +213,8 @@ export class Core extends Dispatcher implements ICore {
         length: null,
         buffer: new Uint8Array([]),
         as: "hex",
+        replacer: /[\n\r]+/g,
+        limiter: null,
       },
       reader: null,
       input_done: null,
@@ -490,7 +494,16 @@ export class Core extends Dispatcher implements ICore {
       } else if (this.__internal__.serial.response.as === "uint8") {
         this.serialMessage(this.parseHexToUint8(this.add0x(serial_data)));
       } else if (this.__internal__.serial.response.as === "string") {
-        this.serialMessage(this.parseUint8ArrayToString(this.add0x(serial_data)));
+        if (this.__internal__.serial.response.limiter !== null) {
+          const str = this.parseUint8ArrayToString(this.add0x(serial_data));
+          const splited = str.split(this.__internal__.serial.response.limiter);
+          for (const s in splited) {
+            if (!splited[s]) continue;
+            this.serialMessage(splited[s]);
+          }
+        } else {
+          this.serialMessage(this.parseUint8ArrayToString(this.add0x(serial_data)));
+        }
       } else {
         const arraybuffer: ArrayBuffer = this.stringToArrayBuffer(
           this.parseUint8ArrayToString(this.add0x(serial_data)),
@@ -1033,7 +1046,10 @@ export class Core extends Dispatcher implements ICore {
     const arrayUint8: Uint8Array = this.stringArrayToUint8Array(array as string[]);
     array = this.parseUint8ToHex(arrayUint8);
     const byteArray: number[] = array.map((hexString: string): number => parseInt(hexString, 16));
-    return String.fromCharCode(...byteArray).replace(/[\n\r]+/g, "");
+    if (this.__internal__.serial.response.replacer) {
+      return String.fromCharCode(...byteArray).replace(this.__internal__.serial.response.replacer, "");
+    }
+    return String.fromCharCode(...byteArray);
   }
 
   hexToAscii(hex: string | number): string {
