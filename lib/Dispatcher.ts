@@ -31,7 +31,7 @@ export class Dispatcher extends EventTarget implements IDispatcher {
   };
   __debug__: boolean = false;
 
-  dispatch(type: string, data: DataType = null) {
+  public dispatch(type: string, data: DataType = null) {
     const event = new SerialEvent(type, { detail: data });
     this.dispatchEvent(event);
     if (this.__debug__) {
@@ -39,7 +39,7 @@ export class Dispatcher extends EventTarget implements IDispatcher {
     }
   }
 
-  dispatchAsync(type: string, data = null, ms = 100) {
+  public dispatchAsync(type: string, data = null, ms = 100) {
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     const this1 = this;
     setTimeout(() => {
@@ -47,7 +47,7 @@ export class Dispatcher extends EventTarget implements IDispatcher {
     }, ms);
   }
 
-  on(type: string, callback: EventListenerOrEventListenerObject) {
+  public on(type: string, callback: EventListenerOrEventListenerObject) {
     if (typeof this.__listeners__[type] !== "undefined" && !this.__listeners__[type]) {
       this.__listeners__[type] = true;
     }
@@ -55,11 +55,11 @@ export class Dispatcher extends EventTarget implements IDispatcher {
     this.addEventListener(type, callback);
   }
 
-  off(type: string, callback: EventListenerOrEventListenerObject) {
+  public off(type: string, callback: EventListenerOrEventListenerObject) {
     this.removeEventListener(type, callback);
   }
 
-  serialRegisterAvailableListener(type: string) {
+  public serialRegisterAvailableListener(type: string) {
     if (this.__listeners__[type]) return;
 
     this.__listeners__[type] = false;

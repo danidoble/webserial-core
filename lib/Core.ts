@@ -1,4 +1,3 @@
-import { v4 as uuidv4 } from "uuid";
 import { Dispatcher } from "./Dispatcher.ts";
 import { Devices } from "./Devices.ts";
 import { supportWebSerial, wait } from "./utils.ts";
@@ -232,7 +231,7 @@ export class Core extends Dispatcher implements ICore {
     },
     device: {
       type: "unknown",
-      id: uuidv4(),
+      id: window.crypto.randomUUID(),
       listen_on_port: null,
     },
     time: {
@@ -362,7 +361,7 @@ export class Core extends Dispatcher implements ICore {
     return !!(port && port.readable && port.writable);
   }
 
-  async timeout(bytes: string[], event: string): Promise<void> {
+  public async timeout(bytes: string[], event: string): Promise<void> {
     this.__internal__.last_error.message = "Operation response timed out.";
     this.__internal__.last_error.action = event;
     this.__internal__.last_error.code = bytes;
@@ -389,7 +388,7 @@ export class Core extends Dispatcher implements ICore {
     });
   }
 
-  async disconnect(detail = null): Promise<void> {
+  public async disconnect(detail = null): Promise<void> {
     await this.serialDisconnect();
     this.#disconnected(detail);
   }
@@ -401,7 +400,7 @@ export class Core extends Dispatcher implements ICore {
     Devices.$dispatchChange(this);
   }
 
-  async connect(): Promise<string> {
+  public async connect(): Promise<string> {
     return new Promise((resolve: (value: string) => void, reject: (reason: string) => void): void => {
       if (!supportWebSerial()) {
         reject(`Web Serial not supported`);
@@ -419,7 +418,7 @@ export class Core extends Dispatcher implements ICore {
     });
   }
 
-  async serialDisconnect(): Promise<void> {
+  public async serialDisconnect(): Promise<void> {
     try {
       const reader: ReadableStreamDefaultReader<Uint8Array> | null = this.__internal__.serial.reader;
       const output_stream: WritableStream<Uint8Array> | null = this.__internal__.serial.output_stream;
@@ -518,19 +517,19 @@ export class Core extends Dispatcher implements ICore {
     this.dispatch("internal:queue", {});
   }
 
-  getResponseAsArrayBuffer(): void {
+  public getResponseAsArrayBuffer(): void {
     this.__internal__.serial.response.as = "arraybuffer";
   }
 
-  getResponseAsArrayHex(): void {
+  public getResponseAsArrayHex(): void {
     this.__internal__.serial.response.as = "hex";
   }
 
-  getResponseAsUint8Array(): void {
+  public getResponseAsUint8Array(): void {
     this.__internal__.serial.response.as = "uint8";
   }
 
-  getResponseAsString(): void {
+  public getResponseAsString(): void {
     this.__internal__.serial.response.as = "string";
   }
 
@@ -551,7 +550,7 @@ export class Core extends Dispatcher implements ICore {
     return filteredPorts.filter((port: SerialPort): boolean => !this.#checkIfPortIsOpen(port));
   }
 
-  async serialPortsSaved(ports: SerialPort[]): Promise<void> {
+  public async serialPortsSaved(ports: SerialPort[]): Promise<void> {
     const filters: SerialPortFilter[] = this.serialFilters;
     if (this.__internal__.aux_port_connector < ports.length) {
       const aux = this.__internal__.aux_port_connector;
@@ -567,7 +566,7 @@ export class Core extends Dispatcher implements ICore {
     }
   }
 
-  serialErrors(error: any): void {
+  public serialErrors(error: any): void {
     const err = error.toString().toLowerCase();
     switch (true) {
       case err.includes("must be handling a user gesture to show a permission request"):
@@ -736,7 +735,7 @@ export class Core extends Dispatcher implements ICore {
     await this.__internal__.serial.port.close();
   }
 
-  async serialConnect(): Promise<void> {
+  public async serialConnect(): Promise<void> {
     try {
       this.dispatch("serial:connecting", {});
 
@@ -802,26 +801,26 @@ export class Core extends Dispatcher implements ICore {
     return false;
   }
 
-  async serialForget(): Promise<boolean> {
+  public async serialForget(): Promise<boolean> {
     return await this.#forget();
   }
 
-  decToHex(dec: number | string): string {
+  public decToHex(dec: number | string): string {
     if (typeof dec === "string") {
       dec = parseInt(dec, 10);
     }
     return dec.toString(16);
   }
 
-  hexToDec(hex: string): number {
+  public hexToDec(hex: string): number {
     return parseInt(hex, 16);
   }
 
-  hexMaker(val = "00", min = 2): string {
+  public hexMaker(val = "00", min = 2): string {
     return val.toString().padStart(min, "0").toLowerCase();
   }
 
-  add0x(bytes: string[]): string[] {
+  public add0x(bytes: string[]): string[] {
     const new_bytes: string[] = [];
     bytes.forEach((value: string, index: number): void => {
       new_bytes[index] = "0x" + value;
@@ -829,7 +828,7 @@ export class Core extends Dispatcher implements ICore {
     return new_bytes;
   }
 
-  bytesToHex(bytes: string[]): string[] {
+  public bytesToHex(bytes: string[]): string[] {
     return this.add0x(Array.from(bytes, (byte: string): string => this.hexMaker(byte)));
   }
 
@@ -913,7 +912,7 @@ export class Core extends Dispatcher implements ICore {
     this.__internal__.serial.queue = copy_queue.splice(1);
   }
 
-  async appendToQueue(arr: string[], action: string): Promise<void> {
+  public async appendToQueue(arr: string[], action: string): Promise<void> {
     const bytes: string[] = this.bytesToHex(arr);
 
     if (["connect", "connection:start"].includes(action)) {
@@ -935,20 +934,20 @@ export class Core extends Dispatcher implements ICore {
     this.__internal__.serial.bytes_connection = this.serialSetConnectionConstant(no_device);
   }
 
-  serialSetConnectionConstant(listen_on_port = 1): never[] | string[] {
+  public serialSetConnectionConstant(listen_on_port = 1): never[] | string[] {
     throw new Error(`Method not implemented 'serialSetConnectionConstant' to listen on channel ${listen_on_port}`);
     // ... implement in subclass
     // return [];
   }
 
-  serialMessage(hex: string[] | Uint8Array<ArrayBufferLike> | string | ArrayBuffer): void {
+  public serialMessage(hex: string[] | Uint8Array<ArrayBufferLike> | string | ArrayBuffer): void {
     // this.dispatch('serial:message', code);
     // ... implement in subclass
     console.log(hex);
     throw new Error("Method not implemented 'serialMessage'");
   }
 
-  serialCorruptMessage(code: string[], data: never | null): void {
+  public serialCorruptMessage(code: string[], data: never | null): void {
     // ... implement in subclass
     console.log(code, data);
     throw new Error("Method not implemented 'serialCorruptMessage'");
@@ -963,11 +962,11 @@ export class Core extends Dispatcher implements ICore {
     };
   }
 
-  clearSerialQueue(): void {
+  public clearSerialQueue(): void {
     this.__internal__.serial.queue = [];
   }
 
-  sumHex(arr: string[]): string {
+  public sumHex(arr: string[]): string {
     let sum: number = 0;
     arr.forEach((value: string): void => {
       sum += parseInt(value, 16);
@@ -975,7 +974,7 @@ export class Core extends Dispatcher implements ICore {
     return sum.toString(16);
   }
 
-  toString(): string {
+  public toString(): string {
     return JSON.stringify({
       __class: this.typeDevice,
       device_number: this.deviceNumber,
@@ -985,12 +984,12 @@ export class Core extends Dispatcher implements ICore {
     });
   }
 
-  softReload(): void {
+  public softReload(): void {
     this.#clearLastError();
     this.dispatch("serial:soft-reload", {});
   }
 
-  async sendConnect(): Promise<void> {
+  public async sendConnect(): Promise<void> {
     if (!this.__internal__.serial.bytes_connection) {
       throw new Error("No connection bytes defined");
     }
@@ -998,41 +997,41 @@ export class Core extends Dispatcher implements ICore {
   }
 
   // @ts-expect-error code is required but can be empty
-  async sendCustomCode({ code = [] }: CustomCode = { code: [] }): Promise<void> {
+  public async sendCustomCode({ code = [] }: CustomCode = { code: [] }): Promise<void> {
     if (code === null || code.length === 0) {
       throw new Error("No data to send");
     }
     await this.appendToQueue(code, "custom");
   }
 
-  stringToArrayHex(string: string): string[] {
+  public stringToArrayHex(string: string): string[] {
     return Array.from(string).map((char: string): string => char.charCodeAt(0).toString(16));
   }
 
-  stringToArrayBuffer(string: string, end: string = "\n"): ArrayBufferLike {
+  public stringToArrayBuffer(string: string, end: string = "\n"): ArrayBufferLike {
     return this.parseStringToTextEncoder(string, end).buffer;
   }
 
-  parseStringToTextEncoder(string: string = "", end: string = "\n"): Uint8Array {
+  public parseStringToTextEncoder(string: string = "", end: string = "\n"): Uint8Array {
     const encoder = new TextEncoder();
     string += end; // to finish the command
     return encoder.encode(string);
   }
 
-  parseStringToBytes(string: string = "", end: string = "\n"): string[] {
+  public parseStringToBytes(string: string = "", end: string = "\n"): string[] {
     const encoded: Uint8Array = this.parseStringToTextEncoder(string, end);
     return Array.from(encoded).map((byte: number): string => byte.toString(16));
   }
 
-  parseUint8ToHex(array: Uint8Array): string[] {
+  public parseUint8ToHex(array: Uint8Array): string[] {
     return Array.from(array).map((byte: number): string => byte.toString(16));
   }
 
-  parseHexToUint8(array: string[]): Uint8Array {
+  public parseHexToUint8(array: string[]): Uint8Array {
     return new Uint8Array(array.map((hexString: string): number => parseInt(hexString, 16)));
   }
 
-  stringArrayToUint8Array(strings: string[]): Uint8Array {
+  public stringArrayToUint8Array(strings: string[]): Uint8Array {
     const bytes: number[] = [];
     strings.forEach((str: string): void => {
       const hex = str.replace("0x", "");
@@ -1042,7 +1041,7 @@ export class Core extends Dispatcher implements ICore {
     return new Uint8Array(bytes);
   }
 
-  parseUint8ArrayToString(array: string[]): string {
+  public parseUint8ArrayToString(array: string[]): string {
     const arrayUint8: Uint8Array = this.stringArrayToUint8Array(array as string[]);
     array = this.parseUint8ToHex(arrayUint8);
     const byteArray: number[] = array.map((hexString: string): number => parseInt(hexString, 16));
@@ -1052,7 +1051,7 @@ export class Core extends Dispatcher implements ICore {
     return String.fromCharCode(...byteArray);
   }
 
-  hexToAscii(hex: string | number): string {
+  public hexToAscii(hex: string | number): string {
     const hexString: string = hex.toString();
     let asciiString: string = "";
     for (let i: number = 0; i < hexString.length; i += 2) {
@@ -1061,7 +1060,7 @@ export class Core extends Dispatcher implements ICore {
     return asciiString;
   }
 
-  asciiToHex(asciiString: string): string {
+  public asciiToHex(asciiString: string): string {
     const hexArray: string[] = [];
     for (let i: number = 0, length: number = asciiString.length; i < length; i++) {
       const hex: string = Number(asciiString.charCodeAt(i)).toString(16);
@@ -1070,7 +1069,7 @@ export class Core extends Dispatcher implements ICore {
     return hexArray.join("");
   }
 
-  $checkAndDispatchConnection(): boolean {
+  public $checkAndDispatchConnection(): boolean {
     return this.isConnected;
   }
 }
