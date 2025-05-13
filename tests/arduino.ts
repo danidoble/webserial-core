@@ -48,13 +48,9 @@ export class Arduino extends Core {
     this.__internal__.time.response_general = 2e3;
     this.__internal__.serial.delay_first_connection = 1_000;
     this.#registerAvailableListenersLocker();
-    this.#touch();
-    this.getResponseAsString();
-  }
-
-  #touch(): void {
     // @ts-expect-error extends Core
     Devices.add(this);
+    this.getResponseAsString();
   }
 
   #registerAvailableListenersLocker(): void {
@@ -113,30 +109,26 @@ export class Arduino extends Core {
     this.dispatch("serial:message", message);
   }
 
-  serialSetConnectionConstant(): string[] {
-    return this.add0x(this.parseStringToBytes("CONNECT"));
+  serialSetConnectionConstant(): string {
+    return "CONNECT";
   }
 
   async sayCredits(): Promise<void> {
-    const arr = this.parseStringToBytes("CREDITS");
-    await this.appendToQueue(arr, "credits");
+    await this.appendToQueue("CREDITS", "credits");
   }
 
   async sayHi(): Promise<void> {
-    const arr = this.parseStringToBytes("HI");
-    await this.appendToQueue(arr, "hi");
+    await this.appendToQueue("HI", "hi");
   }
 
   async sayAra(): Promise<void> {
-    const arr = this.parseStringToBytes("OTHER");
-    await this.appendToQueue(arr, "ara");
+    await this.appendToQueue("OTHER", "ara");
   }
 
   // @ts-expect-error I'm replacing the function param type, but it's not a problem after is parsed to a string[]
   async sendCustomCode({ code = "" } = { code: "" }): Promise<void> {
     if (typeof code !== "string") throw new Error("Invalid string");
-    const arr = this.parseStringToBytes(code);
-    await this.appendToQueue(arr, "custom");
+    await this.appendToQueue(code, "custom");
   }
 
   async doSomething(): Promise<void> {

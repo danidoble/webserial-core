@@ -5,7 +5,7 @@ import { supportWebSerial, wait } from "./utils.ts";
 interface LastError {
   message: string | null;
   action: string | null;
-  code: number | Array<Uint8Array> | Array<string> | null;
+  code: string | Uint8Array | Array<string> | Array<number> | null | number;
   no_code: number;
 }
 
@@ -26,7 +26,7 @@ interface SerialResponse {
 }
 
 interface QueueData {
-  bytes: string[];
+  bytes: string | Uint8Array | Array<string> | Array<number>;
   action: string;
 }
 
@@ -43,7 +43,7 @@ type SerialData = {
   keep_reading: boolean;
   time_until_send_bytes: number | undefined | ReturnType<typeof setTimeout>;
   delay_first_connection: number;
-  bytes_connection: Array<string> | null;
+  bytes_connection: string | Uint8Array | string[] | number[] | null;
   filters: SerialPortFilter[];
   config_port: SerialOptions;
   queue: QueueData[];
@@ -148,7 +148,7 @@ interface ICore {
 
   appendToQueue(arr: string[], action: string): Promise<void>;
 
-  serialSetConnectionConstant(listen_on_port?: number): never[] | string[];
+  serialSetConnectionConstant(listen_on_port?: number): string | Uint8Array | string[] | number[] | null;
 
   serialMessage(hex: string[]): void;
 
@@ -211,7 +211,7 @@ export class Core extends Dispatcher implements ICore {
       response: {
         length: null,
         buffer: new Uint8Array([]),
-        as: "hex",
+        as: "uint8",
         replacer: /[\n\r]+/g,
         limiter: null,
       },
@@ -361,7 +361,7 @@ export class Core extends Dispatcher implements ICore {
     return !!(port && port.readable && port.writable);
   }
 
-  public async timeout(bytes: string[], event: string): Promise<void> {
+  public async timeout(bytes: string | Uint8Array | Array<string> | Array<number>, event: string): Promise<void> {
     this.__internal__.last_error.message = "Operation response timed out.";
     this.__internal__.last_error.action = event;
     this.__internal__.last_error.code = bytes;
@@ -451,20 +451,21 @@ export class Core extends Dispatcher implements ICore {
     }
   }
 
-  async #serialWrite(data: Array<string>): Promise<void> {
+  async #serialWrite(data: string | Uint8Array | Array<string> | Array<number>): Promise<void> {
     const port: SerialPort | null = this.__internal__.serial.port;
     if (!port || (port && (!port.readable || !port.writable))) {
       this.#disconnected({ error: "Port is closed, not readable or writable." });
       throw new Error("The port is closed or is not readable/writable");
     }
-    const bytes = this.stringArrayToUint8Array(data);
+    const bytes: Uint8Array = this.validateBytes(data);
+
     if (port.writable === null) return; // never happens, it's already checked, but to suppress TS error
     const writer: WritableStreamDefaultWriter<Uint8Array> = port.writable.getWriter();
     await writer.write(bytes);
     writer.releaseLock();
   }
 
-  #serialGetResponse(code: string[] = [], data = null) {
+  #serialGetResponse(code: Uint8Array = new Uint8Array([]), data = null) {
     if (code && code.length > 0) {
       const auxPrevConnected: boolean = this.__internal__.serial.connected;
       this.__internal__.serial.connected = this.#checkIfPortIsOpen(this.__internal__.serial.port);
@@ -483,30 +484,23 @@ export class Core extends Dispatcher implements ICore {
         this.__internal__.timeout.until_response = 0;
       }
 
-      const serial_data: string[] = [];
-      for (const byte in code) {
-        serial_data.push(code[byte].toString().padStart(2, "0").toLowerCase());
-      }
-
       if (this.__internal__.serial.response.as === "hex") {
-        this.serialMessage(serial_data);
+        this.serialMessage(this.parseUint8ToHex(code));
       } else if (this.__internal__.serial.response.as === "uint8") {
-        this.serialMessage(this.parseHexToUint8(this.add0x(serial_data)));
+        this.serialMessage(code);
       } else if (this.__internal__.serial.response.as === "string") {
+        const str = this.parseUint8ArrayToString(code);
         if (this.__internal__.serial.response.limiter !== null) {
-          const str = this.parseUint8ArrayToString(this.add0x(serial_data));
           const splited = str.split(this.__internal__.serial.response.limiter);
           for (const s in splited) {
             if (!splited[s]) continue;
             this.serialMessage(splited[s]);
           }
         } else {
-          this.serialMessage(this.parseUint8ArrayToString(this.add0x(serial_data)));
+          this.serialMessage(str);
         }
       } else {
-        const arraybuffer: ArrayBuffer = this.stringToArrayBuffer(
-          this.parseUint8ArrayToString(this.add0x(serial_data)),
-        );
+        const arraybuffer: ArrayBuffer = this.stringToArrayBuffer(this.parseUint8ArrayToString(code));
         this.serialMessage(arraybuffer);
       }
     } else {
@@ -641,13 +635,8 @@ export class Core extends Dispatcher implements ICore {
     }
 
     this.__internal__.serial.time_until_send_bytes = setTimeout((): void => {
-      const hex: string[] = [];
-      for (const byte in this.__internal__.serial.response.buffer) {
-        hex.push(this.__internal__.serial.response.buffer[byte].toString(16));
-      }
-
       if (this.__internal__.serial.response.buffer) {
-        this.#serialGetResponse(hex);
+        this.#serialGetResponse(this.__internal__.serial.response.buffer);
       }
 
       this.__internal__.serial.response.buffer = new Uint8Array(0);
@@ -658,12 +647,7 @@ export class Core extends Dispatcher implements ICore {
     if (this.__internal__.serial.response.length === null) return;
 
     if (this.__internal__.serial.response.length === this.__internal__.serial.response.buffer.length) {
-      const hex: string[] = [];
-      for (const byte in this.__internal__.serial.response.buffer) {
-        hex.push(this.__internal__.serial.response.buffer[byte].toString(16));
-      }
-
-      this.#serialGetResponse(hex);
+      this.#serialGetResponse(this.__internal__.serial.response.buffer);
       this.__internal__.serial.response.buffer = new Uint8Array(0);
     } else if (this.__internal__.serial.response.length < this.__internal__.serial.response.buffer.length) {
       let incoming: Uint8Array = new Uint8Array(0);
@@ -672,11 +656,7 @@ export class Core extends Dispatcher implements ICore {
       }
 
       if (incoming.length === this.__internal__.serial.response.length) {
-        const hex: string[] = [];
-        for (const byte in incoming) {
-          hex.push(incoming[byte].toString(16));
-        }
-        this.#serialGetResponse(hex);
+        this.#serialGetResponse(incoming);
         this.__internal__.serial.response.buffer = new Uint8Array(0);
         return;
       }
@@ -688,11 +668,7 @@ export class Core extends Dispatcher implements ICore {
           incoming[jk - this.__internal__.serial.response.length] = this.__internal__.serial.response.buffer[jk];
         }
         if (incoming.length === this.__internal__.serial.response.length) {
-          const hex: string[] = [];
-          for (const byte in incoming) {
-            hex.push(incoming[byte].toString(16));
-          }
-          this.#serialGetResponse(hex);
+          this.#serialGetResponse(incoming);
           this.__internal__.serial.response.buffer = new Uint8Array(0);
         }
       }
@@ -906,14 +882,37 @@ export class Core extends Dispatcher implements ICore {
     });
 
     if (this.__internal__.auto_response) {
-      this.#serialGetResponse(this.__internal__.serial.auto_response, null);
+      let bytes: Uint8Array = new Uint8Array(0);
+      try {
+        bytes = this.validateBytes(this.__internal__.serial.auto_response);
+      } catch (e: unknown) {
+        this.serialErrors(e);
+      }
+
+      this.#serialGetResponse(bytes, null);
     }
     const copy_queue: QueueData[] = [...this.__internal__.serial.queue];
     this.__internal__.serial.queue = copy_queue.splice(1);
   }
 
-  public async appendToQueue(arr: string[], action: string): Promise<void> {
-    const bytes: string[] = this.bytesToHex(arr);
+  public validateBytes(data: string | Uint8Array | Array<string> | Array<number>): Uint8Array {
+    let bytes: Uint8Array = new Uint8Array(0);
+    if (data instanceof Uint8Array) {
+      bytes = data;
+    } else if (typeof data === "string") {
+      bytes = this.parseStringToTextEncoder(data);
+    } else if (Array.isArray(data) && typeof data[0] === "string") {
+      bytes = this.stringArrayToUint8Array(data as string[]);
+    } else if (Array.isArray(data) && typeof data[0] === "number") {
+      bytes = new Uint8Array(data as unknown as number[]);
+    } else {
+      throw new Error("Invalid data type");
+    }
+    return bytes;
+  }
+
+  public async appendToQueue(arr: string | Uint8Array | string[] | number[], action: string): Promise<void> {
+    const bytes: Uint8Array = this.validateBytes(arr);
 
     if (["connect", "connection:start"].includes(action)) {
       if (this.__internal__.serial.connected) return;
@@ -934,7 +933,7 @@ export class Core extends Dispatcher implements ICore {
     this.__internal__.serial.bytes_connection = this.serialSetConnectionConstant(no_device);
   }
 
-  public serialSetConnectionConstant(listen_on_port = 1): never[] | string[] {
+  public serialSetConnectionConstant(listen_on_port = 1): string | Uint8Array | string[] | number[] | null {
     throw new Error(`Method not implemented 'serialSetConnectionConstant' to listen on channel ${listen_on_port}`);
     // ... implement in subclass
     // return [];
@@ -947,7 +946,7 @@ export class Core extends Dispatcher implements ICore {
     throw new Error("Method not implemented 'serialMessage'");
   }
 
-  public serialCorruptMessage(code: string[], data: never | null): void {
+  public serialCorruptMessage(code: Uint8Array | number[] | string[], data: never | null): void {
     // ... implement in subclass
     console.log(code, data);
     throw new Error("Method not implemented 'serialCorruptMessage'");
@@ -1041,8 +1040,14 @@ export class Core extends Dispatcher implements ICore {
     return new Uint8Array(bytes);
   }
 
-  public parseUint8ArrayToString(array: string[]): string {
-    const arrayUint8: Uint8Array = this.stringArrayToUint8Array(array as string[]);
+  public parseUint8ArrayToString(array: Uint8Array | string[]): string {
+    let arrayUint8: Uint8Array = new Uint8Array(0);
+    if (array instanceof Uint8Array) {
+      arrayUint8 = array;
+    } else {
+      arrayUint8 = this.stringArrayToUint8Array(array as string[]);
+    }
+
     array = this.parseUint8ToHex(arrayUint8);
     const byteArray: number[] = array.map((hexString: string): number => parseInt(hexString, 16));
     if (this.__internal__.serial.response.replacer) {

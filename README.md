@@ -2,6 +2,15 @@
 
 And easy way to connect to a serial port from a web page.
 
+> [!NOTE]
+> Since version 1.0.7 default response is an instance of Uint8Array.
+> To change the response put this code inside your constructor to change the default response.
+> `this.getResponseAsArrayBuffer()`
+> `this.getResponseAsArrayHex()`
+> `this.getResponseAsUint8Array()`
+> `this.getResponseAsString()`
+> Only choose one of them.
+
 ## Installation
 
 ```bash
@@ -9,6 +18,13 @@ npm install webserial-core
 ```
 
 ## Usage
+
+> [!NOTE]
+> If you are using Linux, you need to add your user to the `dialout` group to access the serial port.
+> ```bash
+> sudo usermod -a -G dialout $USER
+> ```
+> After that, you need to log out and log in again to apply the changes.
 
 You need to create a new class to configure your device functions. In this example, we are going to create a class to
 connect to an Arduino device.
@@ -81,12 +97,8 @@ export class Arduino extends Core {
     this.__internal__.time.response_general = 2e3;
     this.__internal__.serial.delay_first_connection = 1_000;
     this.#registerAvailableListenersArduino();
-    this.#touch();
-    this.getResponseAsString();
-  }
-
-  #touch() {
     Devices.add(this);
+    this.getResponseAsString();
   }
 
   #registerAvailableListenersArduino() {

@@ -2,7 +2,7 @@ import { Dispatcher } from "./Dispatcher.ts";
 interface LastError {
     message: string | null;
     action: string | null;
-    code: number | Array<Uint8Array> | Array<string> | null;
+    code: string | Uint8Array | Array<string> | Array<number> | null | number;
     no_code: number;
 }
 interface DeviceData {
@@ -19,7 +19,7 @@ interface SerialResponse {
     limiter: null | string | RegExp;
 }
 interface QueueData {
-    bytes: string[];
+    bytes: string | Uint8Array | Array<string> | Array<number>;
     action: string;
 }
 type SerialData = {
@@ -35,7 +35,7 @@ type SerialData = {
     keep_reading: boolean;
     time_until_send_bytes: number | undefined | ReturnType<typeof setTimeout>;
     delay_first_connection: number;
-    bytes_connection: Array<string> | null;
+    bytes_connection: string | Uint8Array | string[] | number[] | null;
     filters: SerialPortFilter[];
     config_port: SerialOptions;
     queue: QueueData[];
@@ -98,7 +98,7 @@ interface ICore {
     add0x(bytes: string[]): string[];
     bytesToHex(bytes: string[]): string[];
     appendToQueue(arr: string[], action: string): Promise<void>;
-    serialSetConnectionConstant(listen_on_port?: number): never[] | string[];
+    serialSetConnectionConstant(listen_on_port?: number): string | Uint8Array | string[] | number[] | null;
     serialMessage(hex: string[]): void;
     serialCorruptMessage(code: string[], data: never | null): void;
     clearSerialQueue(): void;
@@ -140,7 +140,7 @@ export declare class Core extends Dispatcher implements ICore {
     get uuid(): string;
     get typeDevice(): string;
     get queue(): QueueData[];
-    timeout(bytes: string[], event: string): Promise<void>;
+    timeout(bytes: string | Uint8Array | Array<string> | Array<number>, event: string): Promise<void>;
     disconnect(detail?: null): Promise<void>;
     connect(): Promise<string>;
     serialDisconnect(): Promise<void>;
@@ -157,10 +157,11 @@ export declare class Core extends Dispatcher implements ICore {
     hexMaker(val?: string, min?: number): string;
     add0x(bytes: string[]): string[];
     bytesToHex(bytes: string[]): string[];
-    appendToQueue(arr: string[], action: string): Promise<void>;
-    serialSetConnectionConstant(listen_on_port?: number): never[] | string[];
+    validateBytes(data: string | Uint8Array | Array<string> | Array<number>): Uint8Array;
+    appendToQueue(arr: string | Uint8Array | string[] | number[], action: string): Promise<void>;
+    serialSetConnectionConstant(listen_on_port?: number): string | Uint8Array | string[] | number[] | null;
     serialMessage(hex: string[] | Uint8Array<ArrayBufferLike> | string | ArrayBuffer): void;
-    serialCorruptMessage(code: string[], data: never | null): void;
+    serialCorruptMessage(code: Uint8Array | number[] | string[], data: never | null): void;
     clearSerialQueue(): void;
     sumHex(arr: string[]): string;
     toString(): string;
@@ -174,7 +175,7 @@ export declare class Core extends Dispatcher implements ICore {
     parseUint8ToHex(array: Uint8Array): string[];
     parseHexToUint8(array: string[]): Uint8Array;
     stringArrayToUint8Array(strings: string[]): Uint8Array;
-    parseUint8ArrayToString(array: string[]): string;
+    parseUint8ArrayToString(array: Uint8Array | string[]): string;
     hexToAscii(hex: string | number): string;
     asciiToHex(asciiString: string): string;
     $checkAndDispatchConnection(): boolean;
