@@ -17,6 +17,9 @@ interface SerialResponse {
     as: SerialResponseAs;
     replacer: RegExp | string;
     limiter: null | string | RegExp;
+    prefixLimiter: boolean;
+    sufixLimiter: boolean;
+    delimited: boolean;
 }
 interface QueueData {
     bytes: string | Uint8Array | Array<string> | Array<number>;
@@ -40,6 +43,8 @@ type SerialData = {
     config_port: SerialOptions;
     queue: QueueData[];
     auto_response: any;
+    free_timeout_ms: number;
+    useRTSCTS: boolean;
 };
 interface TimeResponse {
     response_connection: number;
@@ -52,6 +57,7 @@ interface InternalIntervals {
     reconnection: number;
 }
 export type Internal = {
+    bypassSerialBytesConnection: boolean;
     auto_response: boolean;
     device_number: number;
     aux_port_connector: number;
@@ -67,9 +73,10 @@ interface CoreConstructorParams {
     config_port?: SerialOptions;
     no_device?: number;
     device_listen_on_channel?: number | string;
+    bypassSerialBytesConnection?: boolean;
 }
 interface CustomCode {
-    code: Array<string>;
+    code: string | Uint8Array | Array<string> | Array<number>;
 }
 interface ICore {
     lastAction: string | null;
@@ -80,10 +87,26 @@ interface ICore {
     get serialConfigPort(): SerialOptions;
     get isConnected(): boolean;
     get isDisconnected(): boolean;
+    get useRTSCTS(): boolean;
+    set useRTSCTS(value: boolean);
     get deviceNumber(): number;
     get uuid(): string;
     get typeDevice(): string;
     get queue(): QueueData[];
+    get timeoutBeforeResponseBytes(): number;
+    set timeoutBeforeResponseBytes(value: number);
+    get fixedBytesMessage(): number | null;
+    set fixedBytesMessage(length: number | null);
+    get responseDelimited(): boolean;
+    set responseDelimited(value: boolean);
+    get responsePrefixLimited(): boolean;
+    set responsePrefixLimited(value: boolean);
+    get responseSufixLimited(): boolean;
+    set responseSufixLimited(value: boolean);
+    get responseLimiter(): string | RegExp | null;
+    set responseLimiter(limiter: string | RegExp | null);
+    get bypassSerialBytesConnection(): boolean;
+    set bypassSerialBytesConnection(value: boolean);
     timeout(bytes: string[], event: string): Promise<void>;
     disconnect(detail?: null): Promise<void>;
     connect(): Promise<string>;
@@ -99,15 +122,13 @@ interface ICore {
     bytesToHex(bytes: string[]): string[];
     appendToQueue(arr: string[], action: string): Promise<void>;
     serialSetConnectionConstant(listen_on_port?: number): string | Uint8Array | string[] | number[] | null;
-    serialMessage(hex: string[]): void;
-    serialCorruptMessage(code: string[], data: never | null): void;
+    serialMessage(code: string[]): void;
+    serialCorruptMessage(data: Uint8Array | number[] | string[] | never | null | string | ArrayBuffer): void;
     clearSerialQueue(): void;
     sumHex(arr: string[]): string;
     softReload(): void;
     sendConnect(): Promise<void>;
-    sendCustomCode({ code }: {
-        code: CustomCode;
-    }): Promise<void>;
+    sendCustomCode(customCode: CustomCode): Promise<void>;
     stringToArrayHex(string: string): string[];
     stringToArrayBuffer(string: string, end: string): ArrayBufferLike;
     parseStringToBytes(string: string, end: string): string[];
@@ -126,7 +147,7 @@ interface ICore {
 export declare class Core extends Dispatcher implements ICore {
     #private;
     protected __internal__: Internal;
-    constructor({ filters, config_port, no_device, device_listen_on_channel, }?: CoreConstructorParams);
+    constructor({ filters, config_port, no_device, device_listen_on_channel, bypassSerialBytesConnection, }?: CoreConstructorParams);
     set listenOnChannel(channel: string | number);
     get lastAction(): string | null;
     get listenOnChannel(): number;
@@ -134,12 +155,28 @@ export declare class Core extends Dispatcher implements ICore {
     get serialFilters(): SerialPortFilter[];
     set serialConfigPort(config_port: SerialOptions);
     get serialConfigPort(): SerialOptions;
+    get useRTSCTS(): boolean;
+    set useRTSCTS(value: boolean);
     get isConnected(): boolean;
     get isDisconnected(): boolean;
     get deviceNumber(): number;
     get uuid(): string;
     get typeDevice(): string;
     get queue(): QueueData[];
+    get responseDelimited(): boolean;
+    set responseDelimited(value: boolean);
+    get responsePrefixLimited(): boolean;
+    set responsePrefixLimited(value: boolean);
+    get responseSufixLimited(): boolean;
+    set responseSufixLimited(value: boolean);
+    get responseLimiter(): string | RegExp | null;
+    set responseLimiter(limiter: string | RegExp | null);
+    get fixedBytesMessage(): number | null;
+    set fixedBytesMessage(length: number | null);
+    get timeoutBeforeResponseBytes(): number;
+    set timeoutBeforeResponseBytes(value: number);
+    get bypassSerialBytesConnection(): boolean;
+    set bypassSerialBytesConnection(value: boolean);
     timeout(bytes: string | Uint8Array | Array<string> | Array<number>, event: string): Promise<void>;
     disconnect(detail?: null): Promise<void>;
     connect(): Promise<string>;
@@ -160,8 +197,8 @@ export declare class Core extends Dispatcher implements ICore {
     validateBytes(data: string | Uint8Array | Array<string> | Array<number>): Uint8Array;
     appendToQueue(arr: string | Uint8Array | string[] | number[], action: string): Promise<void>;
     serialSetConnectionConstant(listen_on_port?: number): string | Uint8Array | string[] | number[] | null;
-    serialMessage(hex: string[] | Uint8Array<ArrayBufferLike> | string | ArrayBuffer): void;
-    serialCorruptMessage(code: Uint8Array | number[] | string[], data: never | null): void;
+    serialMessage(code: string[] | Uint8Array<ArrayBufferLike> | string | ArrayBuffer): void;
+    serialCorruptMessage(code: Uint8Array | number[] | string[] | never | null | string | ArrayBuffer): void;
     clearSerialQueue(): void;
     sumHex(arr: string[]): string;
     toString(): string;

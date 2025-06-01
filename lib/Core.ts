@@ -23,6 +23,9 @@ interface SerialResponse {
   as: SerialResponseAs;
   replacer: RegExp | string;
   limiter: null | string | RegExp;
+  prefixLimiter: boolean; // If true, the limiter is at the beginning of the message
+  sufixLimiter: boolean; // If true, the limiter is at the end of the message
+  delimited: boolean;
 }
 
 interface QueueData {
@@ -48,6 +51,8 @@ type SerialData = {
   config_port: SerialOptions;
   queue: QueueData[];
   auto_response: any;
+  free_timeout_ms: number;
+  useRTSCTS: boolean;
 };
 
 interface TimeResponse {
@@ -64,6 +69,7 @@ interface InternalIntervals {
 }
 
 export type Internal = {
+  bypassSerialBytesConnection: boolean;
   auto_response: boolean;
   device_number: number;
   aux_port_connector: number;
@@ -80,6 +86,7 @@ interface CoreConstructorParams {
   config_port?: SerialOptions;
   no_device?: number;
   device_listen_on_channel?: number | string;
+  bypassSerialBytesConnection?: boolean;
 }
 
 const defaultConfigPort: SerialOptions = {
@@ -92,7 +99,7 @@ const defaultConfigPort: SerialOptions = {
 };
 
 interface CustomCode {
-  code: Array<string>;
+  code: string | Uint8Array | Array<string> | Array<number>;
 }
 
 interface ICore {
@@ -112,6 +119,10 @@ interface ICore {
 
   get isDisconnected(): boolean;
 
+  get useRTSCTS(): boolean;
+
+  set useRTSCTS(value: boolean);
+
   get deviceNumber(): number;
 
   get uuid(): string;
@@ -119,6 +130,34 @@ interface ICore {
   get typeDevice(): string;
 
   get queue(): QueueData[];
+
+  get timeoutBeforeResponseBytes(): number;
+
+  set timeoutBeforeResponseBytes(value: number);
+
+  get fixedBytesMessage(): number | null;
+
+  set fixedBytesMessage(length: number | null);
+
+  get responseDelimited(): boolean;
+
+  set responseDelimited(value: boolean);
+
+  get responsePrefixLimited(): boolean;
+
+  set responsePrefixLimited(value: boolean);
+
+  get responseSufixLimited(): boolean;
+
+  set responseSufixLimited(value: boolean);
+
+  get responseLimiter(): string | RegExp | null;
+
+  set responseLimiter(limiter: string | RegExp | null);
+
+  get bypassSerialBytesConnection(): boolean;
+
+  set bypassSerialBytesConnection(value: boolean);
 
   timeout(bytes: string[], event: string): Promise<void>;
 
@@ -150,9 +189,9 @@ interface ICore {
 
   serialSetConnectionConstant(listen_on_port?: number): string | Uint8Array | string[] | number[] | null;
 
-  serialMessage(hex: string[]): void;
+  serialMessage(code: string[]): void;
 
-  serialCorruptMessage(code: string[], data: never | null): void;
+  serialCorruptMessage(data: Uint8Array | number[] | string[] | never | null | string | ArrayBuffer): void;
 
   clearSerialQueue(): void;
 
@@ -162,7 +201,7 @@ interface ICore {
 
   sendConnect(): Promise<void>;
 
-  sendCustomCode({ code }: { code: CustomCode }): Promise<void>;
+  sendCustomCode(customCode: CustomCode): Promise<void>;
 
   stringToArrayHex(string: string): string[];
 
@@ -195,6 +234,7 @@ interface ICore {
 
 export class Core extends Dispatcher implements ICore {
   protected __internal__: Internal = {
+    bypassSerialBytesConnection: false,
     auto_response: false,
     device_number: 1,
     aux_port_connector: 0,
@@ -214,6 +254,9 @@ export class Core extends Dispatcher implements ICore {
         as: "uint8",
         replacer: /[\n\r]+/g,
         limiter: null,
+        prefixLimiter: false,
+        sufixLimiter: true,
+        delimited: false,
       },
       reader: null,
       input_done: null,
@@ -228,6 +271,8 @@ export class Core extends Dispatcher implements ICore {
       config_port: defaultConfigPort,
       queue: [],
       auto_response: ["DD", "DD"],
+      free_timeout_ms: 50, // In previous versions 400 was used
+      useRTSCTS: false, // Use RTS/CTS flow control
     },
     device: {
       type: "unknown",
@@ -252,11 +297,13 @@ export class Core extends Dispatcher implements ICore {
       config_port = defaultConfigPort,
       no_device = 1,
       device_listen_on_channel = 1,
+      bypassSerialBytesConnection = false,
     }: CoreConstructorParams = {
       filters: null,
       config_port: defaultConfigPort,
       no_device: 1,
       device_listen_on_channel: 1,
+      bypassSerialBytesConnection: false,
     },
   ) {
     super();
@@ -271,6 +318,10 @@ export class Core extends Dispatcher implements ICore {
 
     if (config_port) {
       this.serialConfigPort = config_port;
+    }
+
+    if (bypassSerialBytesConnection) {
+      this.__internal__.bypassSerialBytesConnection = bypassSerialBytesConnection;
     }
 
     if (no_device) {
@@ -293,6 +344,7 @@ export class Core extends Dispatcher implements ICore {
       throw new Error("Invalid port number");
     }
     this.__internal__.device.listen_on_port = channel;
+    if (this.__internal__.bypassSerialBytesConnection) return;
     this.__internal__.serial.bytes_connection = this.serialSetConnectionConstant(channel);
   }
 
@@ -305,6 +357,7 @@ export class Core extends Dispatcher implements ICore {
   }
 
   set serialFilters(filters: SerialPortFilter[]) {
+    if (this.isConnected) throw new Error("Cannot change serial filters while connected");
     this.__internal__.serial.filters = filters;
   }
 
@@ -313,11 +366,20 @@ export class Core extends Dispatcher implements ICore {
   }
 
   set serialConfigPort(config_port: SerialOptions) {
+    if (this.isConnected) throw new Error("Cannot change serial filters while connected");
     this.__internal__.serial.config_port = config_port;
   }
 
   get serialConfigPort(): SerialOptions {
     return this.__internal__.serial.config_port;
+  }
+
+  get useRTSCTS(): boolean {
+    return this.__internal__.serial.useRTSCTS;
+  }
+
+  set useRTSCTS(value: boolean) {
+    this.__internal__.serial.useRTSCTS = value;
   }
 
   get isConnected(): boolean {
@@ -355,6 +417,84 @@ export class Core extends Dispatcher implements ICore {
 
   get queue(): QueueData[] {
     return this.__internal__.serial.queue;
+  }
+
+  get responseDelimited(): boolean {
+    return this.__internal__.serial.response.delimited;
+  }
+
+  set responseDelimited(value: boolean) {
+    if (typeof value !== "boolean") {
+      throw new Error("responseDelimited must be a boolean");
+    }
+    this.__internal__.serial.response.delimited = value;
+  }
+
+  get responsePrefixLimited(): boolean {
+    return this.__internal__.serial.response.prefixLimiter;
+  }
+
+  set responsePrefixLimited(value: boolean) {
+    if (typeof value !== "boolean") {
+      throw new Error("responsePrefixLimited must be a boolean");
+    }
+    this.__internal__.serial.response.prefixLimiter = value;
+  }
+
+  get responseSufixLimited(): boolean {
+    return this.__internal__.serial.response.sufixLimiter;
+  }
+
+  set responseSufixLimited(value: boolean) {
+    if (typeof value !== "boolean") {
+      throw new Error("responseSufixLimited must be a boolean");
+    }
+    this.__internal__.serial.response.sufixLimiter = value;
+  }
+
+  get responseLimiter(): string | RegExp | null {
+    return this.__internal__.serial.response.limiter;
+  }
+
+  set responseLimiter(limiter: string | RegExp | null) {
+    if (typeof limiter !== "string" && !(limiter instanceof RegExp)) {
+      throw new Error("responseLimiter must be a string or a RegExp");
+    }
+
+    this.__internal__.serial.response.limiter = limiter;
+  }
+
+  get fixedBytesMessage(): number | null {
+    return this.__internal__.serial.response.length;
+  }
+
+  set fixedBytesMessage(length: number | null) {
+    if (length !== null && (typeof length !== "number" || length < 1)) {
+      throw new Error("Invalid length for fixed bytes message");
+    }
+    this.__internal__.serial.response.length = length;
+  }
+
+  get timeoutBeforeResponseBytes(): number {
+    return this.__internal__.serial.free_timeout_ms || 50;
+  }
+
+  set timeoutBeforeResponseBytes(value: number) {
+    if (value !== undefined && (typeof value !== "number" || value < 1)) {
+      throw new Error("Invalid timeout for response bytes");
+    }
+    this.__internal__.serial.free_timeout_ms = value ?? 50;
+  }
+
+  get bypassSerialBytesConnection(): boolean {
+    return this.__internal__.bypassSerialBytesConnection;
+  }
+
+  set bypassSerialBytesConnection(value: boolean) {
+    if (typeof value !== "boolean") {
+      throw new Error("bypassSerialBytesConnection must be a boolean");
+    }
+    this.__internal__.bypassSerialBytesConnection = value;
   }
 
   #checkIfPortIsOpen(port: SerialPort | null): boolean {
@@ -401,6 +541,9 @@ export class Core extends Dispatcher implements ICore {
   }
 
   public async connect(): Promise<string> {
+    if (this.isConnected) {
+      return `${this.typeDevice} device ${this.deviceNumber} already connected`;
+    }
     return new Promise((resolve: (value: string) => void, reject: (reason: string) => void): void => {
       if (!supportWebSerial()) {
         reject(`Web Serial not supported`);
@@ -459,13 +602,30 @@ export class Core extends Dispatcher implements ICore {
     }
     const bytes: Uint8Array = this.validateBytes(data);
 
+    if (this.useRTSCTS) {
+      await this.#waitForCTS(port, 5000);
+    }
+
     if (port.writable === null) return; // never happens, it's already checked, but to suppress TS error
     const writer: WritableStreamDefaultWriter<Uint8Array> = port.writable.getWriter();
     await writer.write(bytes);
     writer.releaseLock();
   }
 
-  #serialGetResponse(code: Uint8Array = new Uint8Array([]), data = null) {
+  async #waitForCTS(port: SerialPort, timeoutMs: number = 5000): Promise<void> {
+    const start = Date.now();
+    while (true) {
+      if (Date.now() - start > timeoutMs) {
+        throw new Error("Timeout waiting for clearToSend signal");
+      }
+
+      const { clearToSend } = await port.getSignals();
+      if (clearToSend) return;
+      await wait(100);
+    }
+  }
+
+  #serialGetResponse(code: Uint8Array = new Uint8Array([]), corrupt: boolean = false) {
     if (code && code.length > 0) {
       const auxPrevConnected: boolean = this.__internal__.serial.connected;
       this.__internal__.serial.connected = this.#checkIfPortIsOpen(this.__internal__.serial.port);
@@ -485,26 +645,44 @@ export class Core extends Dispatcher implements ICore {
       }
 
       if (this.__internal__.serial.response.as === "hex") {
-        this.serialMessage(this.parseUint8ToHex(code));
+        if (corrupt) {
+          this.serialCorruptMessage(this.parseUint8ToHex(code));
+        } else {
+          this.serialMessage(this.parseUint8ToHex(code));
+        }
       } else if (this.__internal__.serial.response.as === "uint8") {
-        this.serialMessage(code);
+        if (corrupt) {
+          this.serialCorruptMessage(code);
+        } else {
+          this.serialMessage(code);
+        }
       } else if (this.__internal__.serial.response.as === "string") {
         const str = this.parseUint8ArrayToString(code);
         if (this.__internal__.serial.response.limiter !== null) {
           const splited = str.split(this.__internal__.serial.response.limiter);
           for (const s in splited) {
             if (!splited[s]) continue;
-            this.serialMessage(splited[s]);
+            if (corrupt) {
+              this.serialCorruptMessage(splited[s]);
+            } else {
+              this.serialMessage(splited[s]);
+            }
           }
         } else {
-          this.serialMessage(str);
+          if (corrupt) {
+            this.serialCorruptMessage(str);
+          } else {
+            this.serialMessage(str);
+          }
         }
       } else {
         const arraybuffer: ArrayBuffer = this.stringToArrayBuffer(this.parseUint8ArrayToString(code));
-        this.serialMessage(arraybuffer);
+        if (corrupt) {
+          this.serialCorruptMessage(arraybuffer);
+        } else {
+          this.serialMessage(arraybuffer);
+        }
       }
-    } else {
-      this.serialCorruptMessage(code, data);
     }
 
     if (this.__internal__.serial.queue.length === 0) return;
@@ -640,75 +818,158 @@ export class Core extends Dispatcher implements ICore {
       }
 
       this.__internal__.serial.response.buffer = new Uint8Array(0);
-    }, 400);
+    }, this.__internal__.serial.free_timeout_ms || 50);
   }
 
   async #slicedSerialLoop(): Promise<void> {
-    if (this.__internal__.serial.response.length === null) return;
+    const expectedLength = this.__internal__.serial.response.length;
+    let buffer = this.__internal__.serial.response.buffer;
 
-    if (this.__internal__.serial.response.length === this.__internal__.serial.response.buffer.length) {
-      this.#serialGetResponse(this.__internal__.serial.response.buffer);
-      this.__internal__.serial.response.buffer = new Uint8Array(0);
-    } else if (this.__internal__.serial.response.length < this.__internal__.serial.response.buffer.length) {
-      let incoming: Uint8Array = new Uint8Array(0);
-      for (let jk: number = 0; jk < this.__internal__.serial.response.length; jk++) {
-        incoming[jk] = this.__internal__.serial.response.buffer[jk];
-      }
+    if (this.__internal__.serial.time_until_send_bytes) {
+      clearTimeout(this.__internal__.serial.time_until_send_bytes);
+      this.__internal__.serial.time_until_send_bytes = 0;
+    }
 
-      if (incoming.length === this.__internal__.serial.response.length) {
-        this.#serialGetResponse(incoming);
-        this.__internal__.serial.response.buffer = new Uint8Array(0);
+    if (expectedLength === null || !buffer || buffer.length === 0) return;
+
+    while (buffer.length >= expectedLength) {
+      const message = buffer.slice(0, expectedLength);
+      this.#serialGetResponse(message);
+
+      buffer = buffer.slice(expectedLength);
+    }
+    this.__internal__.serial.response.buffer = buffer;
+
+    if (buffer.length > 0) {
+      this.__internal__.serial.time_until_send_bytes = setTimeout((): void => {
+        this.#serialGetResponse(this.__internal__.serial.response.buffer, true);
+      }, this.__internal__.serial.free_timeout_ms || 50);
+    }
+  }
+
+  async #delimitedSerialLoop(): Promise<void> {
+    const {
+      limiter,
+      prefixLimiter = false,
+      sufixLimiter = true,
+    }: {
+      limiter: string | RegExp | null;
+      prefixLimiter?: boolean;
+      sufixLimiter?: boolean;
+    } = this.__internal__.serial.response;
+
+    if (!limiter) {
+      throw new Error("No limiter defined for delimited serial response");
+    }
+
+    const buffer = this.__internal__.serial.response.buffer;
+
+    if (!limiter || !buffer || buffer.length === 0) return;
+
+    if (this.__internal__.serial.time_until_send_bytes) {
+      clearTimeout(this.__internal__.serial.time_until_send_bytes);
+      this.__internal__.serial.time_until_send_bytes = 0;
+    }
+
+    const decoder = new TextDecoder();
+    let decoded = decoder.decode(buffer);
+    const messages: Uint8Array[] = [];
+
+    if (typeof limiter === "string") {
+      let pattern: RegExp;
+      if (prefixLimiter && sufixLimiter) {
+        pattern = new RegExp(`${limiter}([^${limiter}]+)${limiter}`, "g");
+      } else if (prefixLimiter) {
+        pattern = new RegExp(`${limiter}([^${limiter}]*)`, "g");
+      } else if (sufixLimiter) {
+        pattern = new RegExp(`([^${limiter}]+)${limiter}`, "g");
+      } else {
         return;
       }
-      incoming = new Uint8Array(0);
 
-      const double_length: number = this.__internal__.serial.response.length * 2;
-      if (this.__internal__.serial.response.buffer.length === double_length) {
-        for (let jk: number = 14; jk < double_length; jk++) {
-          incoming[jk - this.__internal__.serial.response.length] = this.__internal__.serial.response.buffer[jk];
-        }
-        if (incoming.length === this.__internal__.serial.response.length) {
-          this.#serialGetResponse(incoming);
-          this.__internal__.serial.response.buffer = new Uint8Array(0);
-        }
+      let match;
+      let lastIndex = 0;
+      while ((match = pattern.exec(decoded)) !== null) {
+        messages.push(new TextEncoder().encode(match[1]));
+        lastIndex = pattern.lastIndex;
       }
+
+      decoded = decoded.slice(lastIndex);
+    } else if (limiter instanceof RegExp) {
+      let match;
+      let lastIndex = 0;
+      if (prefixLimiter && sufixLimiter) {
+        const pattern = new RegExp(`${limiter.source}(.*?)${limiter.source}`, "g");
+        while ((match = pattern.exec(decoded)) !== null) {
+          messages.push(new TextEncoder().encode(match[1]));
+          lastIndex = pattern.lastIndex;
+        }
+      } else if (sufixLimiter) {
+        while ((match = limiter.exec(decoded)) !== null) {
+          const end = match.index;
+          const chunk = decoded.slice(lastIndex, end);
+          messages.push(new TextEncoder().encode(chunk));
+          lastIndex = limiter.lastIndex;
+        }
+      } else if (prefixLimiter) {
+        const parts = decoded.split(limiter);
+        parts.shift();
+        for (const part of parts) {
+          messages.push(new TextEncoder().encode(part));
+        }
+        decoded = "";
+      }
+
+      decoded = decoded.slice(lastIndex);
+    }
+
+    for (const msg of messages) {
+      this.#serialGetResponse(msg);
+    }
+
+    const leftoverBytes = new TextEncoder().encode(decoded);
+    this.__internal__.serial.response.buffer = leftoverBytes;
+
+    if (leftoverBytes.length > 0) {
+      this.__internal__.serial.time_until_send_bytes = setTimeout((): void => {
+        this.#serialGetResponse(this.__internal__.serial.response.buffer, true);
+        this.__internal__.serial.response.buffer = new Uint8Array(0);
+      }, this.__internal__.serial.free_timeout_ms ?? 50);
     }
   }
 
   async #readSerialLoop(): Promise<void> {
     const port: SerialPort | null = this.__internal__.serial.port;
     if (!port || !port.readable) throw new Error("Port is not readable");
-    while (port.readable && this.__internal__.serial.keep_reading) {
-      const reader: ReadableStreamDefaultReader<Uint8Array> = port.readable.getReader();
-      this.__internal__.serial.reader = reader;
-      try {
-        let run: boolean = true;
-        while (run) {
-          const { value, done } = await reader.read();
-          if (done) {
-            reader.releaseLock();
-            this.__internal__.serial.keep_reading = false;
-            run = false;
-            break;
-          }
 
-          this.#appendBuffer(value);
+    const reader: ReadableStreamDefaultReader<Uint8Array> = port.readable.getReader();
+    this.__internal__.serial.reader = reader;
 
-          if (this.__internal__.serial.response.length === null) {
-            await this.#freeSerialLoop();
-          } else {
-            await this.#slicedSerialLoop();
-          }
+    try {
+      while (this.__internal__.serial.keep_reading) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        this.#appendBuffer(value);
+
+        if (this.__internal__.serial.response.delimited) {
+          await this.#delimitedSerialLoop();
+        } else if (this.__internal__.serial.response.length === null) {
+          await this.#freeSerialLoop();
+        } else {
+          await this.#slicedSerialLoop();
         }
-      } catch (err: unknown) {
-        this.serialErrors(err);
-      } finally {
-        reader.releaseLock();
+      }
+    } catch (err: unknown) {
+      this.serialErrors(err);
+    } finally {
+      reader.releaseLock();
+      this.__internal__.serial.keep_reading = true;
+
+      if (this.__internal__.serial.port) {
+        await this.__internal__.serial.port.close();
       }
     }
-    this.__internal__.serial.keep_reading = true;
-    if (!this.__internal__.serial.port) return;
-    await this.__internal__.serial.port.close();
   }
 
   public async serialConnect(): Promise<void> {
@@ -759,7 +1020,7 @@ export class Core extends Dispatcher implements ICore {
       });
 
       if (this.__internal__.auto_response) {
-        this.#serialGetResponse(this.__internal__.serial.auto_response, null);
+        this.#serialGetResponse(this.__internal__.serial.auto_response);
       }
       await this.#readSerialLoop();
     } catch (e: unknown) {
@@ -818,6 +1079,7 @@ export class Core extends Dispatcher implements ICore {
       "serial:sent",
       "serial:soft-reload",
       "serial:message",
+      "serial:corrupt-message",
       "unknown",
       "serial:need-permission",
       "serial:lost",
@@ -889,7 +1151,7 @@ export class Core extends Dispatcher implements ICore {
         this.serialErrors(e);
       }
 
-      this.#serialGetResponse(bytes, null);
+      this.#serialGetResponse(bytes);
     }
     const copy_queue: QueueData[] = [...this.__internal__.serial.queue];
     this.__internal__.serial.queue = copy_queue.splice(1);
@@ -930,25 +1192,32 @@ export class Core extends Dispatcher implements ICore {
 
   #serialSetBytesConnection(no_device = 1): void {
     this.__internal__.device_number = no_device;
+    if (this.__internal__.bypassSerialBytesConnection) return;
     this.__internal__.serial.bytes_connection = this.serialSetConnectionConstant(no_device);
   }
 
   public serialSetConnectionConstant(listen_on_port = 1): string | Uint8Array | string[] | number[] | null {
+    if (this.__internal__.bypassSerialBytesConnection) return this.__internal__.serial.bytes_connection;
+
+    console.warn("wtf?", this.bypassSerialBytesConnection);
+
     throw new Error(`Method not implemented 'serialSetConnectionConstant' to listen on channel ${listen_on_port}`);
     // ... implement in subclass
     // return [];
   }
 
-  public serialMessage(hex: string[] | Uint8Array<ArrayBufferLike> | string | ArrayBuffer): void {
+  public serialMessage(code: string[] | Uint8Array<ArrayBufferLike> | string | ArrayBuffer): void {
     // this.dispatch('serial:message', code);
     // ... implement in subclass
-    console.log(hex);
+    console.log(code);
+    this.dispatch("serial:message", { code: code });
     throw new Error("Method not implemented 'serialMessage'");
   }
 
-  public serialCorruptMessage(code: Uint8Array | number[] | string[], data: never | null): void {
+  public serialCorruptMessage(code: Uint8Array | number[] | string[] | never | null | string | ArrayBuffer): void {
     // ... implement in subclass
-    console.log(code, data);
+    console.log(code);
+    this.dispatch("serial:corrupt-message", { code });
     throw new Error("Method not implemented 'serialCorruptMessage'");
   }
 
@@ -995,11 +1264,15 @@ export class Core extends Dispatcher implements ICore {
     await this.appendToQueue(this.__internal__.serial.bytes_connection, "connect");
   }
 
-  // @ts-expect-error code is required but can be empty
   public async sendCustomCode({ code = [] }: CustomCode = { code: [] }): Promise<void> {
-    if (code === null || code.length === 0) {
+    if (!code) {
       throw new Error("No data to send");
     }
+
+    if (this.__internal__.bypassSerialBytesConnection) {
+      this.__internal__.serial.bytes_connection = this.validateBytes(code);
+    }
+
     await this.appendToQueue(code, "custom");
   }
 
@@ -1032,6 +1305,9 @@ export class Core extends Dispatcher implements ICore {
 
   public stringArrayToUint8Array(strings: string[]): Uint8Array {
     const bytes: number[] = [];
+    if (typeof strings === "string") {
+      return this.parseStringToTextEncoder(strings).buffer as Uint8Array;
+    }
     strings.forEach((str: string): void => {
       const hex = str.replace("0x", "");
       bytes.push(parseInt(hex, 16));

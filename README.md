@@ -218,6 +218,7 @@ arduino.on('serial:disconnected', (event) => {
 
   document.getElementById('disconnected').classList.remove('hidden');
   document.getElementById('connect').classList.remove('hidden');
+  document.getElementById("disconnect")?.classList.add("hidden");
 });
 
 // eslint-disable-next-line no-unused-vars
@@ -232,6 +233,7 @@ arduino.on('serial:connected', (event) => {
   document.getElementById('disconnected').classList.add('hidden');
   document.getElementById('need-permission').classList.add('hidden');
   document.getElementById('connect').classList.add('hidden');
+  document.getElementById("disconnect")?.classList.remove("hidden");
 });
 
 // eslint-disable-next-line no-unused-vars
@@ -239,6 +241,7 @@ arduino.on('serial:need-permission', (event) => {
   document.getElementById('disconnected').classList.remove('hidden');
   document.getElementById('need-permission').classList.remove('hidden');
   document.getElementById('connect').classList.remove('hidden');
+  document.getElementById("disconnect")?.classList.add("hidden");
 });
 
 // eslint-disable-next-line no-unused-vars
@@ -260,7 +263,11 @@ function tryConnect() {
 
 document.addEventListener('DOMContentLoaded', () => {
   tryConnect();
-  document.getElementById('connect').addEventListener('click', tryConnect);
+  document.getElementById('connect')?.addEventListener('click', tryConnect);
+  document.getElementById("disconnect")?.addEventListener("click", async () => {
+    await board.disconnect().catch(console.error);
+    document.getElementById('log')?.innerText += 'Disconnected by user\n\n';
+  });
 });
 
 ```
@@ -283,6 +290,7 @@ But wait still need to create the HTML file.
     <div class="webserial w-full max-w-xl mx-auto grid grid-cols-1 gap-y-4">
         <div class="my-6"></div>
         <button id="connect" class="hidden px-4 py-3 bg-gray-800 rounded-lg">Connect to serial</button>
+        <button id="disconnect" class="hidden px-4 py-3 bg-rose-800 rounded-lg">Disconnect device</button>
 
         <div id="need-permission" class="hidden p-4 bg-rose-900 rounded-lg">
             Woooah! It seems that you need to give permission to access the serial port.

@@ -11,6 +11,14 @@ interface SerialMessage {
   no_code: number;
 }
 
+interface ConstructorParams {
+  filters?: SerialPortFilter[] | null;
+  config_port?: SerialOptions;
+  no_device?: number;
+  device_listen_on_channel?: number | string;
+  bypassSerialBytesConnection?: boolean;
+}
+
 export class Arduino extends Core {
   constructor(
     {
@@ -24,7 +32,8 @@ export class Arduino extends Core {
         flowControl: "none",
       },
       no_device = 1,
-    } = {
+      bypassSerialBytesConnection = false,
+    } : ConstructorParams = {
       filters: null,
       config_port: {
         baudRate: 9600,
@@ -35,10 +44,11 @@ export class Arduino extends Core {
         flowControl: "none",
       },
       no_device: 1,
+      bypassSerialBytesConnection: false,
     },
   ) {
-    // @ts-expect-error parity is string
-    super({ filters, config_port, no_device });
+    super({ filters, config_port, no_device, bypassSerialBytesConnection });
+    
     this.__internal__.device.type = "arduino";
     Devices.registerType(this.__internal__.device.type);
     if (Devices.getByNumber(this.typeDevice, no_device)) {
@@ -59,6 +69,12 @@ export class Arduino extends Core {
         this.serialRegisterAvailableListener(event)
     }
     */
+  }
+
+  public serialCorruptMessage(code: Uint8Array | number[] | string[] | never | null | string | ArrayBuffer): void {
+    console.warn("serialCorruptMessage", code);
+    this.dispatch("serial:corrupt-message", {code});
+    this.dispatch("serial:message", {code});
   }
 
   serialMessage(codex: string[] | Uint8Array<ArrayBufferLike> | string | ArrayBuffer): void {
@@ -123,12 +139,6 @@ export class Arduino extends Core {
 
   async sayAra(): Promise<void> {
     await this.appendToQueue("OTHER", "ara");
-  }
-
-  // @ts-expect-error I'm replacing the function param type, but it's not a problem after is parsed to a string[]
-  async sendCustomCode({ code = "" } = { code: "" }): Promise<void> {
-    if (typeof code !== "string") throw new Error("Invalid string");
-    await this.appendToQueue(code, "custom");
   }
 
   async doSomething(): Promise<void> {

@@ -5,7 +5,18 @@ document.addEventListener("DOMContentLoaded", (): void => {
   if (!logElement) logElement = document.getElementById("log");
 });
 
-const board = new Arduino();
+const board = new Arduino(
+  // { bypassSerialBytesConnection: true }
+);
+
+// board.useRTSCTS = true; // Enable RTS/CTS flow control
+// board.fixedBytesMessage = 11;
+// board.timeoutBeforeResponseBytes = 50; // prev versions 400ms
+// board.responseDelimited = true;
+// board.responseLimiter = '\n';
+// board.responseSufixLimited = true;
+// board.responsePrefixLimited = true;
+
 board.on("serial:message", (data): void => {
   // @ts-expect-error detail is defined
   const detail = data.detail;
@@ -28,11 +39,11 @@ board.on("serial:sent", (data): void => {
     'Action "' + detail.action + '": sent: ' + board.parseUint8ArrayToString(detail.bytes) + "\n\n";
 });
 
-// board.on("serial:error", (event): void => {
-//   if (!logElement) return;
-//   // @ts-expect-error detail is defined
-//   logElement.innerText += event.detail.message + "\n\n";
-// });
+board.on("serial:error", (event): void => {
+  if (!logElement) return;
+  // @ts-expect-error detail is defined
+  logElement.innerText += event.detail.message + "\n\n";
+});
 
 board.on("serial:disconnected", (): void => {
   // console.log(event);
@@ -42,6 +53,7 @@ board.on("serial:disconnected", (): void => {
 
   document.getElementById("disconnected")?.classList.remove("hidden");
   document.getElementById("connect")?.classList.remove("hidden");
+  document.getElementById("disconnect")?.classList.add("hidden");
 });
 
 board.on("serial:connecting", (): void => {
@@ -57,12 +69,14 @@ board.on("serial:connected", (): void => {
   document.getElementById("disconnected")?.classList.add("hidden");
   document.getElementById("need-permission")?.classList.add("hidden");
   document.getElementById("connect")?.classList.add("hidden");
+  document.getElementById("disconnect")?.classList.remove("hidden");
 });
 
 board.on("serial:need-permission", (): void => {
   document.getElementById("disconnected")?.classList.remove("hidden");
   document.getElementById("need-permission")?.classList.remove("hidden");
   document.getElementById("connect")?.classList.remove("hidden");
+  document.getElementById("disconnect")?.classList.add("hidden");
 });
 
 board.on("serial:soft-reload", (): void => {
@@ -83,6 +97,11 @@ function tryConnect(): void {
 document.addEventListener("DOMContentLoaded", (): void => {
   tryConnect();
   document.getElementById("connect")?.addEventListener("click", tryConnect);
+  document.getElementById("disconnect")?.addEventListener("click", async () => {
+    await board.disconnect().catch(console.error);
+    if (!logElement) return;
+    logElement.innerText += "Disconnected by user\n\n";
+  });
 });
 
 // just to test in navigator

@@ -1,7 +1,7 @@
 {
   "name": "webserial-core",
   "description": "Webserial Core to easy connections with serial devices",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "type": "module",
   "license": "MIT",
   "author": "danidoble",
