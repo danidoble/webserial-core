@@ -26,6 +26,8 @@ interface QueueData {
     action: string;
 }
 type SerialData = {
+    aux_connecting: string;
+    connecting: boolean;
     connected: boolean;
     port: SerialPort | null;
     last_action: string | null;
@@ -86,6 +88,7 @@ interface ICore {
     set serialConfigPort(config_port: SerialOptions);
     get serialConfigPort(): SerialOptions;
     get isConnected(): boolean;
+    get isConnecting(): boolean;
     get isDisconnected(): boolean;
     get useRTSCTS(): boolean;
     set useRTSCTS(value: boolean);
@@ -109,7 +112,7 @@ interface ICore {
     set bypassSerialBytesConnection(value: boolean);
     timeout(bytes: string[], event: string): Promise<void>;
     disconnect(detail?: null): Promise<void>;
-    connect(): Promise<string>;
+    connect(): Promise<boolean>;
     serialDisconnect(): Promise<void>;
     serialPortsSaved(ports: SerialPort[]): Promise<void>;
     serialErrors(error: unknown | Error | DOMException): void;
@@ -158,6 +161,7 @@ export declare class Core extends Dispatcher implements ICore {
     get useRTSCTS(): boolean;
     set useRTSCTS(value: boolean);
     get isConnected(): boolean;
+    get isConnecting(): boolean;
     get isDisconnected(): boolean;
     get deviceNumber(): number;
     get uuid(): string;
@@ -179,7 +183,7 @@ export declare class Core extends Dispatcher implements ICore {
     set bypassSerialBytesConnection(value: boolean);
     timeout(bytes: string | Uint8Array | Array<string> | Array<number>, event: string): Promise<void>;
     disconnect(detail?: null): Promise<void>;
-    connect(): Promise<string>;
+    connect(): Promise<boolean>;
     serialDisconnect(): Promise<void>;
     getResponseAsArrayBuffer(): void;
     getResponseAsArrayHex(): void;

@@ -8,6 +8,12 @@ document.addEventListener("DOMContentLoaded", (): void => {
 const board = new Arduino(
   // { bypassSerialBytesConnection: true }
 );
+board.__debug__ = true;
+board.on("debug", (event): void => {
+  // @ts-expect-error detail is defined
+  const detail = event.detail;
+  console.log("debug", detail);
+})
 
 // board.useRTSCTS = true; // Enable RTS/CTS flow control
 // board.fixedBytesMessage = 11;

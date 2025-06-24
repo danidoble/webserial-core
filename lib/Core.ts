@@ -34,6 +34,8 @@ interface QueueData {
 }
 
 type SerialData = {
+  aux_connecting: string;
+  connecting: boolean;
   connected: boolean;
   port: SerialPort | null;
   last_action: string | null;
@@ -117,6 +119,8 @@ interface ICore {
 
   get isConnected(): boolean;
 
+  get isConnecting(): boolean;
+
   get isDisconnected(): boolean;
 
   get useRTSCTS(): boolean;
@@ -163,7 +167,7 @@ interface ICore {
 
   disconnect(detail?: null): Promise<void>;
 
-  connect(): Promise<string>;
+  connect(): Promise<boolean>;
 
   serialDisconnect(): Promise<void>;
 
@@ -245,6 +249,8 @@ export class Core extends Dispatcher implements ICore {
       no_code: 0,
     },
     serial: {
+      aux_connecting: "idle",
+      connecting: false,
       connected: false,
       port: null,
       last_action: null,
@@ -392,11 +398,16 @@ export class Core extends Dispatcher implements ICore {
     return this.__internal__.serial.connected;
   }
 
+  get isConnecting(): boolean {
+    return this.__internal__.serial.connecting;
+  }
+
   get isDisconnected(): boolean {
     const prevConnected = this.__internal__.serial.connected;
     const connected = this.#checkIfPortIsOpen(this.__internal__.serial.port);
     if (!prevConnected && connected) {
       this.dispatch("serial:connected");
+      this.#connectingChange(false);
       Devices.$dispatchChange(this);
     }
     this.__internal__.serial.connected = connected;
@@ -540,24 +551,57 @@ export class Core extends Dispatcher implements ICore {
     Devices.$dispatchChange(this);
   }
 
-  public async connect(): Promise<string> {
+  #onFinishConnecting(event: any): void {
+    this.__internal__.serial.aux_connecting = event.detail.active ? "connecting" : "finished";
+  }
+
+  public async connect(): Promise<boolean> {
     if (this.isConnected) {
-      return `${this.typeDevice} device ${this.deviceNumber} already connected`;
+      return true;
+      // return `${this.typeDevice} device ${this.deviceNumber} already connected`;
     }
-    return new Promise((resolve: (value: string) => void, reject: (reason: string) => void): void => {
+
+    this.__internal__.serial.aux_connecting = "idle";
+
+    return new Promise((resolve: (value: boolean) => void, reject: (reason: string) => void): void => {
       if (!supportWebSerial()) {
         reject(`Web Serial not supported`);
       }
 
-      setTimeout(async (): Promise<void> => {
-        await wait(499);
-        await this.serialConnect();
-        if (this.isConnected) {
-          resolve(`${this.typeDevice} device ${this.deviceNumber} connected`);
-        } else {
-          reject(`${this.typeDevice} device ${this.deviceNumber} not connected`);
+      const onFinishConnecting = this.#onFinishConnecting.bind(this);
+      this.on("serial:connecting", onFinishConnecting);
+
+      const interval: number = setInterval((): void => {
+        if (this.__internal__.serial.aux_connecting === "finished") {
+          clearInterval(interval);
+          this.__internal__.serial.aux_connecting = "idle";
+          this.off("serial:connecting", onFinishConnecting);
+
+          if (this.isConnected) {
+            resolve(true);
+          } else {
+            reject(`${this.typeDevice} device ${this.deviceNumber} not connected`);
+          }
+        } else if (this.__internal__.serial.aux_connecting === "connecting") {
+          this.__internal__.serial.aux_connecting = "idle";
+          this.dispatch("serial:connecting", { active: true });
         }
-      }, 1);
+      }, 100);
+
+      this.serialConnect();
+
+      // setTimeout(async (): Promise<void> => {
+      //   // await wait(499);
+      //   this.serialConnect();//.then(()=>{}).catch((): void => {});
+
+      //   if (this.isConnected) {
+      //     resolve(true);
+      //     // resolve(`${this.typeDevice} device ${this.deviceNumber} connected`);
+      //   } else {
+      //     reject(false);
+      //     //reject(`${this.typeDevice} device ${this.deviceNumber} not connected`);
+      //   }
+      // }, 1);
     });
   }
 
@@ -632,6 +676,7 @@ export class Core extends Dispatcher implements ICore {
       Devices.$dispatchChange(this);
       if (!auxPrevConnected && this.__internal__.serial.connected) {
         this.dispatch("serial:connected");
+        this.#connectingChange(false);
       }
 
       if (this.__internal__.interval.reconnection) {
@@ -972,9 +1017,20 @@ export class Core extends Dispatcher implements ICore {
     }
   }
 
+  #connectingChange(value: boolean): void {
+    if (value === this.__internal__.serial.connecting) return;
+
+    this.__internal__.serial.connecting = value;
+    if (value) {
+      this.dispatch("serial:connecting", { active: true });
+    } else {
+      this.dispatch("serial:connecting", { active: false });
+    }
+  }
+
   public async serialConnect(): Promise<void> {
     try {
-      this.dispatch("serial:connecting", {});
+      this.#connectingChange(true);
 
       const ports: SerialPort[] = await this.#serialPortsFiltered();
       if (ports.length > 0) {
@@ -994,8 +1050,9 @@ export class Core extends Dispatcher implements ICore {
       // eslint-disable-next-line @typescript-eslint/no-this-alias
       const this1: this = this;
       port.onconnect = (event: Event): void => {
-        console.log(event);
+        // console.log(event);
         this1.dispatch("serial:connected", event);
+        this1.#connectingChange(false);
         Devices.$dispatchChange(this);
         if (this1.__internal__.serial.queue.length > 0) {
           this1.dispatch("internal:queue", {});
@@ -1024,6 +1081,7 @@ export class Core extends Dispatcher implements ICore {
       }
       await this.#readSerialLoop();
     } catch (e: unknown) {
+      this.#connectingChange(false);
       this.serialErrors(e);
     }
   }
@@ -1199,7 +1257,7 @@ export class Core extends Dispatcher implements ICore {
   public serialSetConnectionConstant(listen_on_port = 1): string | Uint8Array | string[] | number[] | null {
     if (this.__internal__.bypassSerialBytesConnection) return this.__internal__.serial.bytes_connection;
 
-    console.warn("wtf?", this.bypassSerialBytesConnection);
+    // console.warn("wtf?", this.bypassSerialBytesConnection);
 
     throw new Error(`Method not implemented 'serialSetConnectionConstant' to listen on channel ${listen_on_port}`);
     // ... implement in subclass
