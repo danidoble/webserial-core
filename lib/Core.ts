@@ -571,6 +571,7 @@ export class Core extends Dispatcher implements ICore {
       const onFinishConnecting = this.#onFinishConnecting.bind(this);
       this.on("serial:connecting", onFinishConnecting);
 
+      // @ts-expect-error interval is number in browser
       const interval: number = setInterval((): void => {
         if (this.__internal__.serial.aux_connecting === "finished") {
           clearInterval(interval);

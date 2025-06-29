@@ -31,6 +31,8 @@ export class Dispatcher extends EventTarget implements IDispatcher {
   };
   __debug__: boolean = false;
 
+  __listenersCallbacks__: { key: string; callback: EventListenerOrEventListenerObject }[] = [];
+
   public dispatch(type: string, data: DataType = null) {
     const event = new SerialEvent(type, { detail: data });
     this.dispatchEvent(event);
@@ -52,10 +54,15 @@ export class Dispatcher extends EventTarget implements IDispatcher {
       this.__listeners__[type] = true;
     }
 
+    this.__listenersCallbacks__.push({ key: type, callback });
     this.addEventListener(type, callback);
   }
 
   public off(type: string, callback: EventListenerOrEventListenerObject) {
+    this.__listenersCallbacks__ = this.__listenersCallbacks__.filter((listener) => {
+      return !(listener.key === type && listener.callback === callback);
+    });
+
     this.removeEventListener(type, callback);
   }
 
@@ -73,5 +80,15 @@ export class Dispatcher extends EventTarget implements IDispatcher {
         listening: this.__listeners__[type],
       };
     });
+  }
+
+  public removeAllListeners(): void {
+    for (const listener of this.__listenersCallbacks__) {
+      this.removeEventListener(listener.key, listener.callback);
+    }
+    this.__listenersCallbacks__ = [];
+    this.__listeners__ = {
+      debug: false,
+    };
   }
 }

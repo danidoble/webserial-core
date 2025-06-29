@@ -58,7 +58,7 @@ export class Arduino extends Core {
     this.__internal__.time.response_general = 2e3;
     this.__internal__.serial.delay_first_connection = 1_000;
     this.#registerAvailableListenersLocker();
-    // @ts-expect-error extends Core
+    
     Devices.add(this);
     this.getResponseAsString();
   }

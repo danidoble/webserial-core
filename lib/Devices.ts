@@ -39,14 +39,14 @@ export class Devices extends Dispatcher {
 
   public static registerType(type: string): void {
     if (typeof Devices.devices[type] === "undefined") {
-      Devices.devices[type] = {};
+      Devices.devices = { ...Devices.devices, [type]: {} };
     }
   }
 
   public static add(device: Core): number {
     const type = device.typeDevice;
     if (typeof Devices.devices[type] === "undefined") {
-      Devices.devices[type] = {};
+      Devices.registerType(type);
     }
 
     const id: string = device.uuid;
@@ -65,7 +65,7 @@ export class Devices extends Dispatcher {
 
   public static get(type: string, id: string): Core {
     if (typeof Devices.devices[type] === "undefined") {
-      Devices.devices[type] = {};
+      Devices.registerType(type);
     }
 
     if (typeof Devices.devices[type] === "undefined") Devices.typeError(type);
@@ -103,6 +103,58 @@ export class Devices extends Dispatcher {
 
     const devices = Object.values(Devices.devices[type]);
     return devices.find((device) => device.deviceNumber === device_number) ?? null;
+  }
+
+  public static async connectToAll(): Promise<boolean> {
+    const devices: Core[] = Devices.getList();
+
+    for (const device of devices) {
+      if (device.isConnected) continue;
+      await device.connect().catch(console.warn);
+    }
+
+    return Promise.resolve(Devices.areAllConnected());
+  }
+
+  public static async disconnectAll(): Promise<boolean> {
+    const devices: Core[] = Devices.getList();
+
+    for (const device of devices) {
+      if (device.isDisconnected) continue;
+      await device.disconnect().catch(console.warn);
+    }
+
+    return Promise.resolve(Devices.areAllDisconnected());
+  }
+
+  public static async areAllConnected(): Promise<boolean> {
+    const devices: Core[] = Devices.getList();
+
+    for (const device of devices) {
+      if (!device.isConnected) return Promise.resolve(false);
+    }
+
+    return Promise.resolve(true);
+  }
+
+  public static async areAllDisconnected(): Promise<boolean> {
+    const devices: Core[] = Devices.getList();
+
+    for (const device of devices) {
+      if (!device.isDisconnected) return Promise.resolve(false);
+    }
+
+    return Promise.resolve(true);
+  }
+
+  public static async getAllConnected(): Promise<Core[]> {
+    const devices: Core[] = Devices.getList();
+    return Promise.resolve(devices.filter((device: Core): boolean => device.isConnected));
+  }
+
+  public static async getAllDisconnected(): Promise<Core[]> {
+    const devices: Core[] = Devices.getList();
+    return Promise.resolve(devices.filter((device: Core): boolean => device.isDisconnected));
   }
 }
 

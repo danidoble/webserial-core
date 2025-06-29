@@ -19,12 +19,17 @@ interface Listeners {
 export declare class Dispatcher extends EventTarget implements IDispatcher {
     __listeners__: Listeners;
     __debug__: boolean;
+    __listenersCallbacks__: {
+        key: string;
+        callback: EventListenerOrEventListenerObject;
+    }[];
     dispatch(type: string, data?: DataType): void;
     dispatchAsync(type: string, data?: null, ms?: number): void;
     on(type: string, callback: EventListenerOrEventListenerObject): void;
     off(type: string, callback: EventListenerOrEventListenerObject): void;
     serialRegisterAvailableListener(type: string): void;
     get availableListeners(): AvailableListeners;
+    removeAllListeners(): void;
 }
 export {};
 //# sourceMappingURL=Dispatcher.d.ts.map

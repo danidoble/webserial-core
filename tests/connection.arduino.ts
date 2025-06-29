@@ -8,12 +8,13 @@ document.addEventListener("DOMContentLoaded", (): void => {
 const board = new Arduino(
   // { bypassSerialBytesConnection: true }
 );
-board.__debug__ = true;
-board.on("debug", (event): void => {
-  // @ts-expect-error detail is defined
-  const detail = event.detail;
-  console.log("debug", detail);
-})
+
+// board.__debug__ = true;
+// board.on("debug", (event): void => {
+//   // @ts-expect-error detail is defined
+//   const detail = event.detail;
+//   console.log("debug", detail);
+// })
 
 // board.useRTSCTS = true; // Enable RTS/CTS flow control
 // board.fixedBytesMessage = 11;
@@ -62,9 +63,9 @@ board.on("serial:disconnected", (): void => {
   document.getElementById("disconnect")?.classList.add("hidden");
 });
 
-board.on("serial:connecting", (): void => {
-  if (!logElement) return;
-  logElement.innerText += "Connecting\n\n";
+board.on("serial:connecting", (event: any): void => {
+  if (!logElement || event.detail.active) return;
+  logElement.innerText += "Connecting finished\n\n";
 });
 
 board.on("serial:connected", (): void => {
@@ -93,7 +94,7 @@ board.on("serial:unsupported", (): void => {
   document.getElementById("unsupported")?.classList.remove("hidden");
 });
 
-function tryConnect(): void {
+async function tryConnect(): Promise<void> {
   board
     .connect()
     .then((): void => {})

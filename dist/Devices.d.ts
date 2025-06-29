@@ -19,6 +19,12 @@ export declare class Devices extends Dispatcher {
     static getList(): Core[];
     static getByNumber(type: string, device_number: number): Core | null;
     static getCustom(type: string, device_number?: number): Core | null;
+    static connectToAll(): Promise<boolean>;
+    static disconnectAll(): Promise<boolean>;
+    static areAllConnected(): Promise<boolean>;
+    static areAllDisconnected(): Promise<boolean>;
+    static getAllConnected(): Promise<Core[]>;
+    static getAllDisconnected(): Promise<Core[]>;
 }
 export {};
 //# sourceMappingURL=Devices.d.ts.map
