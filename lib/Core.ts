@@ -564,6 +564,7 @@ export class Core extends Dispatcher implements ICore {
     }
 
     this.__internal__.serial.aux_connecting = "idle";
+    console.warn(`Connecting to ${this.typeDevice} device ${this.deviceNumber}...`);
 
     return new Promise((resolve: (value: boolean) => void, reject: (reason: string) => void): void => {
       if (!supportWebSerial()) {
@@ -575,8 +576,10 @@ export class Core extends Dispatcher implements ICore {
       }
 
       this.on("internal:connecting", this.#boundFinishConnecting);
+      console.warn(`internal:connecting`);
 
       const interval: number = setInterval((): void => {
+        console.warn(`interval internal:connecting`);
         if (this.__internal__.serial.aux_connecting === "finished") {
           clearInterval(interval);
           this.__internal__.serial.aux_connecting = "idle";

@@ -5,7 +5,7 @@ var k = (l) => {
 var K = (l, i, e) => i in l ? J(l, i, { enumerable: !0, configurable: !0, writable: !0, value: e }) : l[i] = e;
 var y = (l, i, e) => K(l, typeof i != "symbol" ? i + "" : i, e), T = (l, i, e) => i.has(l) || k("Cannot " + e);
 var m = (l, i, e) => (T(l, i, "read from private field"), e ? e.call(l) : i.get(l)), S = (l, i, e) => i.has(l) ? k("Cannot add the same private member more than once") : i instanceof WeakSet ? i.add(l) : i.set(l, e), P = (l, i, e, t) => (T(l, i, "write to private field"), t ? t.call(l, e) : i.set(l, e), e), o = (l, i, e) => (T(l, i, "access private method"), e);
-class B extends CustomEvent {
+class D extends CustomEvent {
   constructor(i, e) {
     super(i, e);
   }
@@ -20,8 +20,8 @@ class U extends EventTarget {
     y(this, "__listenersCallbacks__", []);
   }
   dispatch(e, t = null) {
-    const n = new B(e, { detail: t });
-    this.dispatchEvent(n), this.__debug__ && this.dispatchEvent(new B("debug", { detail: { type: e, data: t } }));
+    const n = new D(e, { detail: t });
+    this.dispatchEvent(n), this.__debug__ && this.dispatchEvent(new D("debug", { detail: { type: e, data: t } }));
   }
   dispatchAsync(e, t = null, n = 100) {
     const r = this;
@@ -126,7 +126,7 @@ const a = class a extends U {
 y(a, "instance"), y(a, "devices", {});
 let h = a;
 h.instance || (h.instance = new h());
-function D(l = 100) {
+function B(l = 100) {
   return new Promise(
     (i) => setTimeout(() => i(), l)
   );
@@ -142,7 +142,7 @@ const E = {
   bufferSize: 32768,
   flowControl: "none"
 };
-var f, s, b, C, I, A, $, p, R, M, q, N, O, F, w, H, j, W, Q, V, z, G;
+var f, s, b, C, $, A, I, p, R, M, q, N, O, F, w, H, j, W, Q, V, z, G;
 class Z extends U {
   constructor({
     filters: e = null,
@@ -346,10 +346,10 @@ class Z extends U {
     await this.serialDisconnect(), o(this, s, C).call(this, e);
   }
   async connect() {
-    return this.isConnected ? !0 : (this.__internal__.serial.aux_connecting = "idle", new Promise((e, t) => {
-      X() || t("Web Serial not supported"), m(this, f) || P(this, f, o(this, s, I).bind(this)), this.on("internal:connecting", m(this, f));
+    return this.isConnected ? !0 : (this.__internal__.serial.aux_connecting = "idle", console.warn(`Connecting to ${this.typeDevice} device ${this.deviceNumber}...`), new Promise((e, t) => {
+      X() || t("Web Serial not supported"), m(this, f) || P(this, f, o(this, s, $).bind(this)), this.on("internal:connecting", m(this, f)), console.warn("internal:connecting");
       const n = setInterval(() => {
-        this.__internal__.serial.aux_connecting === "finished" ? (clearInterval(n), this.__internal__.serial.aux_connecting = "idle", m(this, f) !== null ? (console.warn(
+        console.warn("interval internal:connecting"), this.__internal__.serial.aux_connecting === "finished" ? (clearInterval(n), this.__internal__.serial.aux_connecting = "idle", m(this, f) !== null ? (console.warn(
           this.__listenersCallbacks__.filter(
             (r) => r.key === "internal:connecting" && r.callback === m(this, f)
           )
@@ -461,7 +461,7 @@ class Z extends U {
         n.dispatch("serial:connected", r), o(_ = n, s, w).call(_, !1), h.$dispatchChange(this), n.__internal__.serial.queue.length > 0 && n.dispatch("internal:queue", {});
       }, t.ondisconnect = async () => {
         await n.disconnect();
-      }, await D(this.__internal__.serial.delay_first_connection), this.__internal__.timeout.until_response = setTimeout(async () => {
+      }, await B(this.__internal__.serial.delay_first_connection), this.__internal__.timeout.until_response = setTimeout(async () => {
         await n.timeout(n.__internal__.serial.bytes_connection ?? [], "connection:start");
       }, this.__internal__.time.response_connection), this.__internal__.serial.last_action = "connect", await o(this, s, A).call(this, this.__internal__.serial.bytes_connection ?? []), this.dispatch("serial:sent", {
         action: "connect",
@@ -615,24 +615,24 @@ f = new WeakMap(), s = new WeakSet(), b = function(e) {
   return !!(e && e.readable && e.writable);
 }, C = function(e = null) {
   this.__internal__.serial.connected = !1, this.__internal__.aux_port_connector = 0, this.dispatch("serial:disconnected", e), h.$dispatchChange(this);
-}, I = function(e) {
+}, $ = function(e) {
   this.__internal__.serial.aux_connecting = e.detail.active ? "connecting" : "finished";
 }, A = async function(e) {
   const t = this.__internal__.serial.port;
   if (!t || t && (!t.readable || !t.writable))
     throw o(this, s, C).call(this, { error: "Port is closed, not readable or writable." }), new Error("The port is closed or is not readable/writable");
   const n = this.validateBytes(e);
-  if (this.useRTSCTS && await o(this, s, $).call(this, t, 5e3), t.writable === null) return;
+  if (this.useRTSCTS && await o(this, s, I).call(this, t, 5e3), t.writable === null) return;
   const r = t.writable.getWriter();
   await r.write(n), r.releaseLock();
-}, $ = async function(e, t = 5e3) {
+}, I = async function(e, t = 5e3) {
   const n = Date.now();
   for (; ; ) {
     if (Date.now() - n > t)
       throw new Error("Timeout waiting for clearToSend signal");
     const { clearToSend: r } = await e.getSignals();
     if (r) return;
-    await D(100);
+    await B(100);
   }
 }, p = function(e = new Uint8Array([]), t = !1) {
   if (e && e.length > 0) {
