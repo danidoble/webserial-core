@@ -45,9 +45,9 @@
     "format": "prettier --write ./lib/**/*.ts"
   },
   "devDependencies": {
-    "@eslint/js": "^9.29.0",
+    "@eslint/js": "^9.30.0",
     "@types/w3c-web-serial": "^1.0.8",
-    "eslint": "^9.29.0",
+    "eslint": "^9.30.0",
     "globals": "^15.15.0",
     "prettier": "3.4.2",
     "typescript": "~5.7.3",

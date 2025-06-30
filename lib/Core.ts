@@ -569,14 +569,13 @@ export class Core extends Dispatcher implements ICore {
       }
 
       const onFinishConnecting = this.#onFinishConnecting.bind(this);
-      this.on("serial:connecting", onFinishConnecting);
+      this.on("internal:connecting", onFinishConnecting);
 
-      // @ts-expect-error interval is number in browser
       const interval: number = setInterval((): void => {
         if (this.__internal__.serial.aux_connecting === "finished") {
           clearInterval(interval);
           this.__internal__.serial.aux_connecting = "idle";
-          this.off("serial:connecting", onFinishConnecting);
+          this.off("internal:connecting", onFinishConnecting);
 
           if (this.isConnected) {
             resolve(true);
@@ -585,6 +584,7 @@ export class Core extends Dispatcher implements ICore {
           }
         } else if (this.__internal__.serial.aux_connecting === "connecting") {
           this.__internal__.serial.aux_connecting = "idle";
+          this.dispatch("internal:connecting", { active: true });
           this.dispatch("serial:connecting", { active: true });
         }
       }, 100);
@@ -1022,11 +1022,7 @@ export class Core extends Dispatcher implements ICore {
     if (value === this.__internal__.serial.connecting) return;
 
     this.__internal__.serial.connecting = value;
-    if (value) {
-      this.dispatch("serial:connecting", { active: true });
-    } else {
-      this.dispatch("serial:connecting", { active: false });
-    }
+    this.dispatch("serial:connecting", { active: value });
   }
 
   public async serialConnect(): Promise<void> {
