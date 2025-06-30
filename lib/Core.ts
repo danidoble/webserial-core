@@ -581,7 +581,14 @@ export class Core extends Dispatcher implements ICore {
           clearInterval(interval);
           this.__internal__.serial.aux_connecting = "idle";
           if (null !== this.#boundFinishConnecting) {
+            console.warn(
+              this.__listenersCallbacks__.filter(
+                (l) => l.key === "internal:connecting" && l.callback === this.#boundFinishConnecting,
+              ),
+            );
             this.off("internal:connecting", this.#boundFinishConnecting);
+          } else {
+            console.warn("#boundFinishConnecting is null?");
           }
 
           if (this.isConnected) {
