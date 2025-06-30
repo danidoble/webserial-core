@@ -297,6 +297,8 @@ export class Core extends Dispatcher implements ICore {
     },
   };
 
+  #boundFinishConnecting: EventListenerOrEventListenerObject | null = null;
+
   constructor(
     {
       filters = null,
@@ -568,14 +570,19 @@ export class Core extends Dispatcher implements ICore {
         reject(`Web Serial not supported`);
       }
 
-      const onFinishConnecting = this.#onFinishConnecting.bind(this);
-      this.on("internal:connecting", onFinishConnecting);
+      if (!this.#boundFinishConnecting) {
+        this.#boundFinishConnecting = this.#onFinishConnecting.bind(this);
+      }
+
+      this.on("internal:connecting", this.#boundFinishConnecting);
 
       const interval: number = setInterval((): void => {
         if (this.__internal__.serial.aux_connecting === "finished") {
           clearInterval(interval);
           this.__internal__.serial.aux_connecting = "idle";
-          this.off("internal:connecting", onFinishConnecting);
+          if (null !== this.#boundFinishConnecting) {
+            this.off("internal:connecting", this.#boundFinishConnecting);
+          }
 
           if (this.isConnected) {
             resolve(true);

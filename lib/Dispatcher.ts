@@ -86,11 +86,13 @@ export class Dispatcher extends EventTarget implements IDispatcher {
     for (const listener of this.__listenersCallbacks__) {
       if (["internal:queue", "internal:connecting"].includes(listener.key)) continue; // Skip internal listeners
 
+      this.__listenersCallbacks__ = this.__listenersCallbacks__.filter((l) => {
+        return !(l.key === listener.key && l.callback === listener.callback);
+      });
       this.removeEventListener(listener.key, listener.callback);
     }
-    this.__listenersCallbacks__ = [];
-    this.__listeners__ = {
-      debug: false,
-    };
+    for (const key of Object.keys(this.__listeners__)) {
+      this.__listeners__[key] = false;
+    }
   }
 }
