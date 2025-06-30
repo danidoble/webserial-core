@@ -84,7 +84,7 @@ export class Dispatcher extends EventTarget implements IDispatcher {
 
   public removeAllListeners(): void {
     for (const listener of this.__listenersCallbacks__) {
-      if (["internal:queue", "internal:connecting"].includes(listener.key)) continue; // Skip internal listeners
+      if (["internal:queue"].includes(listener.key)) continue; // Skip queue listener
 
       this.__listenersCallbacks__ = this.__listenersCallbacks__.filter((l) => {
         return !(l.key === listener.key && l.callback === listener.callback);

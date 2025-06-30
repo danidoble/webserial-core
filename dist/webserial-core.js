@@ -46,7 +46,7 @@ class U extends EventTarget {
   }
   removeAllListeners() {
     for (const e of this.__listenersCallbacks__)
-      ["internal:queue", "internal:connecting"].includes(e.key) || (this.__listenersCallbacks__ = this.__listenersCallbacks__.filter((t) => !(t.key === e.key && t.callback === e.callback)), this.removeEventListener(e.key, e.callback));
+      ["internal:queue"].includes(e.key) || (this.__listenersCallbacks__ = this.__listenersCallbacks__.filter((t) => !(t.key === e.key && t.callback === e.callback)), this.removeEventListener(e.key, e.callback));
     for (const e of Object.keys(this.__listeners__))
       this.__listeners__[e] = !1;
   }
