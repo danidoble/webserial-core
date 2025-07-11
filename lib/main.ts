@@ -11,3 +11,4 @@
 export { Core } from "./Core";
 export { Devices } from "./Devices";
 export { Dispatcher } from "./Dispatcher";
+export { Socket } from "./Socket";

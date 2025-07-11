@@ -25,7 +25,20 @@ interface QueueData {
     bytes: string | Uint8Array | Array<string> | Array<number>;
     action: string;
 }
+type ParserSocketPort = {
+    name: "byte-length" | "inter-byte-timeout";
+    length?: number;
+    interval?: number;
+};
+type PortInfo = {
+    path: string | null;
+    vendorId: number | string | null;
+    productId: number | string | null;
+    parser: ParserSocketPort;
+};
 type SerialData = {
+    socket: boolean;
+    portInfo: PortInfo;
     aux_connecting: string;
     connecting: boolean;
     connected: boolean;
@@ -50,6 +63,7 @@ type SerialData = {
 };
 interface TimeResponse {
     response_connection: number;
+    response_engines: number;
     response_general: number;
 }
 interface Timeout {
@@ -76,6 +90,7 @@ interface CoreConstructorParams {
     no_device?: number;
     device_listen_on_channel?: number | string;
     bypassSerialBytesConnection?: boolean;
+    socket?: boolean;
 }
 interface CustomCode {
     code: string | Uint8Array | Array<string> | Array<number>;
@@ -150,7 +165,7 @@ interface ICore {
 export declare class Core extends Dispatcher implements ICore {
     #private;
     protected __internal__: Internal;
-    constructor({ filters, config_port, no_device, device_listen_on_channel, bypassSerialBytesConnection, }?: CoreConstructorParams);
+    constructor({ filters, config_port, no_device, device_listen_on_channel, bypassSerialBytesConnection, socket, }?: CoreConstructorParams);
     set listenOnChannel(channel: string | number);
     get lastAction(): string | null;
     get listenOnChannel(): number;
@@ -181,8 +196,33 @@ export declare class Core extends Dispatcher implements ICore {
     set timeoutBeforeResponseBytes(value: number);
     get bypassSerialBytesConnection(): boolean;
     set bypassSerialBytesConnection(value: boolean);
+    get useSocket(): boolean;
+    get connectionBytes(): Uint8Array;
+    set portPath(path: string | null);
+    get portPath(): string | null;
+    set portVendorId(vendorId: number | string | null);
+    get portVendorId(): number | string | null;
+    set portProductId(productId: number | string | null);
+    get portProductId(): number | string | null;
+    set socketPortParser(string: "byte-length" | "inter-byte-timeout");
+    get socketPortParser(): "byte-length" | "inter-byte-timeout";
+    set socketPortParserInterval(value: number);
+    get socketPortParserInterval(): number;
+    set socketPortParserLength(value: number);
+    get socketPortParserLength(): number;
+    get parserForSocket(): {
+        name: "byte-length";
+        length: number;
+        interval?: undefined;
+    } | {
+        name: "inter-byte-timeout";
+        interval: number;
+        length?: undefined;
+    };
+    get configDeviceSocket(): object;
     timeout(bytes: string | Uint8Array | Array<string> | Array<number>, event: string): Promise<void>;
     disconnect(detail?: null): Promise<void>;
+    socketResponse(data: any): void;
     connect(): Promise<boolean>;
     serialDisconnect(): Promise<void>;
     getResponseAsArrayBuffer(): void;

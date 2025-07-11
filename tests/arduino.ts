@@ -57,13 +57,13 @@ export class Arduino extends Core {
     this.__internal__.time.response_connection = 2e3;
     this.__internal__.time.response_general = 2e3;
     this.__internal__.serial.delay_first_connection = 1_000;
-    this.#registerAvailableListenersLocker();
+    this.#registerAvailableListenersArduino();
     
     Devices.add(this);
     this.getResponseAsString();
   }
 
-  #registerAvailableListenersLocker(): void {
+  #registerAvailableListenersArduino(): void {
     /*const _ = [];
     for (const event of _) {
         this.serialRegisterAvailableListener(event)

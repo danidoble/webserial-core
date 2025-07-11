@@ -1,6 +1,7 @@
 import { Dispatcher } from "./Dispatcher.ts";
 import { Devices } from "./Devices.ts";
-import { supportWebSerial, wait } from "./utils.ts";
+import { wait } from "./utils.ts";
+import { Socket } from "./Socket.ts";
 
 interface LastError {
   message: string | null;
@@ -33,7 +34,22 @@ interface QueueData {
   action: string;
 }
 
+type ParserSocketPort = {
+  name: "byte-length" | "inter-byte-timeout";
+  length?: number; // Length of each byte in the response, only for byte-length
+  interval?: number; // Interval in milliseconds for inter-byte-timeout
+};
+
+type PortInfo = {
+  path: string | null;
+  vendorId: number | string | null;
+  productId: number | string | null;
+  parser: ParserSocketPort;
+};
+
 type SerialData = {
+  socket: boolean;
+  portInfo: PortInfo;
   aux_connecting: string;
   connecting: boolean;
   connected: boolean;
@@ -59,6 +75,7 @@ type SerialData = {
 
 interface TimeResponse {
   response_connection: number;
+  response_engines: number;
   response_general: number;
 }
 
@@ -89,6 +106,7 @@ interface CoreConstructorParams {
   no_device?: number;
   device_listen_on_channel?: number | string;
   bypassSerialBytesConnection?: boolean;
+  socket?: boolean;
 }
 
 const defaultConfigPort: SerialOptions = {
@@ -249,6 +267,16 @@ export class Core extends Dispatcher implements ICore {
       no_code: 0,
     },
     serial: {
+      socket: false,
+      portInfo: {
+        path: null,
+        vendorId: null,
+        productId: null,
+        parser: {
+          name: "inter-byte-timeout",
+          interval: 50,
+        },
+      },
       aux_connecting: "idle",
       connecting: false,
       connected: false,
@@ -276,7 +304,7 @@ export class Core extends Dispatcher implements ICore {
       filters: [],
       config_port: defaultConfigPort,
       queue: [],
-      auto_response: ["DD", "DD"],
+      auto_response: null,
       free_timeout_ms: 50, // In previous versions 400 was used
       useRTSCTS: false, // Use RTS/CTS flow control
     },
@@ -287,6 +315,7 @@ export class Core extends Dispatcher implements ICore {
     },
     time: {
       response_connection: 500,
+      response_engines: 2e3,
       response_general: 2e3,
     },
     timeout: {
@@ -306,12 +335,14 @@ export class Core extends Dispatcher implements ICore {
       no_device = 1,
       device_listen_on_channel = 1,
       bypassSerialBytesConnection = false,
+      socket = false,
     }: CoreConstructorParams = {
       filters: null,
       config_port: defaultConfigPort,
       no_device: 1,
       device_listen_on_channel: 1,
       bypassSerialBytesConnection: false,
+      socket: false,
     },
   ) {
     super();
@@ -339,6 +370,8 @@ export class Core extends Dispatcher implements ICore {
     if (device_listen_on_channel && ["number", "string"].includes(typeof device_listen_on_channel)) {
       this.listenOnChannel = device_listen_on_channel;
     }
+
+    this.__internal__.serial.socket = socket;
 
     this.#registerDefaultListeners();
     this.#internalEvents();
@@ -510,7 +543,150 @@ export class Core extends Dispatcher implements ICore {
     this.__internal__.bypassSerialBytesConnection = value;
   }
 
+  get useSocket(): boolean {
+    return this.__internal__.serial.socket;
+  }
+
+  get connectionBytes(): Uint8Array {
+    const bytes = this.__internal__.serial.bytes_connection;
+
+    if (bytes instanceof Uint8Array) {
+      return bytes;
+    }
+
+    if (typeof bytes === "string") {
+      return this.stringArrayToUint8Array(this.parseStringToBytes(bytes, ""));
+    }
+
+    if (Array.isArray(bytes) && typeof bytes[0] === "string") {
+      return this.stringArrayToUint8Array(bytes as string[]);
+    }
+
+    if (Array.isArray(bytes) && typeof bytes[0] === "number") {
+      return new Uint8Array(bytes as number[]);
+    }
+
+    return new Uint8Array([]);
+  }
+
+  set portPath(path: string | null) {
+    if (this.isConnected) throw new Error("Cannot change port path while connected");
+    if (typeof path !== "string" && path !== null) {
+      throw new TypeError("vendorId must be string or null");
+    }
+    this.__internal__.serial.portInfo.path = path;
+  }
+
+  get portPath(): string | null {
+    return this.__internal__.serial.portInfo.path;
+  }
+
+  set portVendorId(vendorId: number | string | null) {
+    if (this.isConnected) throw new Error("Cannot change port vendorId while connected");
+    if (typeof vendorId! == "number" && typeof vendorId !== "string" && vendorId !== null) {
+      throw new TypeError("vendorId must be a number, string or null");
+    }
+    this.__internal__.serial.portInfo.vendorId = vendorId;
+  }
+
+  get portVendorId(): number | string | null {
+    return this.__internal__.serial.portInfo.vendorId;
+  }
+
+  set portProductId(productId: number | string | null) {
+    if (this.isConnected) throw new Error("Cannot change port productId while connected");
+    if (typeof productId! == "number" && typeof productId !== "string" && productId !== null) {
+      throw new TypeError("productId must be a number, string or null");
+    }
+    this.__internal__.serial.portInfo.productId = productId;
+  }
+
+  get portProductId(): number | string | null {
+    return this.__internal__.serial.portInfo.productId;
+  }
+
+  set socketPortParser(string: "byte-length" | "inter-byte-timeout") {
+    if (["byte-length", "inter-byte-timeout"].includes(string)) {
+      throw new TypeError("socketPortParser must be a string, either 'byte-length' or 'inter-byte-timeout'");
+    }
+    this.__internal__.serial.portInfo.parser.name = string;
+  }
+
+  get socketPortParser(): "byte-length" | "inter-byte-timeout" {
+    return this.__internal__.serial.portInfo.parser.name;
+  }
+
+  set socketPortParserInterval(value: number) {
+    if (typeof value !== "number" || value < 1) {
+      throw new TypeError("Interval must be a positive number");
+    }
+
+    this.__internal__.serial.portInfo.parser.interval = value;
+  }
+
+  get socketPortParserInterval(): number {
+    return this.__internal__.serial.portInfo.parser.interval || 50;
+  }
+
+  set socketPortParserLength(value: number) {
+    if (typeof value !== "number" || value < 1) {
+      throw new TypeError("Length must be a positive number or null");
+    }
+    this.__internal__.serial.portInfo.parser.length = value;
+  }
+
+  get socketPortParserLength(): number {
+    return this.__internal__.serial.portInfo.parser.length || 14;
+  }
+
+  get parserForSocket() {
+    if (this.socketPortParser === "byte-length") {
+      return {
+        name: this.socketPortParser,
+        length: this.socketPortParserLength,
+      };
+    }
+    return {
+      name: this.socketPortParser,
+      interval: this.socketPortParserInterval,
+    };
+  }
+
+  get configDeviceSocket(): object {
+    return {
+      uuid: this.uuid,
+      name: this.typeDevice,
+      deviceNumber: this.deviceNumber,
+      connectionBytes: Array.from(this.connectionBytes),
+      config: {
+        baudRate: this.__internal__.serial.config_port.baudRate,
+        dataBits: this.__internal__.serial.config_port.dataBits,
+        stopBits: this.__internal__.serial.config_port.stopBits,
+        parity: this.__internal__.serial.config_port.parity,
+        bufferSize: this.__internal__.serial.config_port.bufferSize,
+        flowControl: this.__internal__.serial.config_port.flowControl,
+      },
+      info: {
+        vendorId: this.portVendorId, // vendor ID or null for auto-detect
+        productId: this.portProductId, // product ID or null for auto-detect
+        portName: this.portPath, // COM3, /dev/ttyUSB0, etc. null for auto-detect
+      },
+      response: {
+        automatic: this.__internal__.auto_response, // true to auto-respond to commands this only for devices that doesn't respond nothing
+        autoResponse: this.__internal__.serial.auto_response, // null or data to respond automatically, ie. [0x02, 0x06, 0xdd, 0xdd, 0xf0, 0xcf, 0x03] for relay
+        parser: this.parserForSocket,
+        timeout: {
+          general: this.__internal__.time.response_general,
+          engines: this.__internal__.time.response_engines,
+          connection: this.__internal__.time.response_connection,
+        },
+      },
+    };
+  }
+
   #checkIfPortIsOpen(port: SerialPort | null): boolean {
+    if (this.useSocket) return this.__internal__.serial.connected;
+
     return !!(port && port.readable && port.writable);
   }
 
@@ -557,25 +733,49 @@ export class Core extends Dispatcher implements ICore {
     this.__internal__.serial.aux_connecting = event.detail.active ? "connecting" : "finished";
   }
 
+  socketResponse(data: any) {
+    const auxPrevConnected: boolean = this.__internal__.serial.connected;
+
+    if (data.type === "disconnect" || (data.type === "error" && data.data === "DISCONNECTED")) {
+      this.__internal__.serial.connected = false;
+    } else if (data.type === "success") {
+      this.__internal__.serial.connected = true;
+    }
+
+    Devices.$dispatchChange(this);
+    if (!auxPrevConnected && this.__internal__.serial.connected) {
+      this.dispatch("serial:connected");
+      this.#connectingChange(false);
+    }
+
+    // console.log(data, this.lastAction);
+    if (data.type === "success") {
+      this.#serialGetResponse(new Uint8Array(data.data));
+    } else if (data.type === "error") {
+      const error = new Error("The port is closed or is not readable/writable");
+      this.serialErrors(error);
+    } else if (data.type === "timeout") {
+      this.timeout(data.data.bytes ?? [], this.lastAction || "unknown");
+    }
+
+    this.__internal__.serial.last_action = null;
+  }
+
   public async connect(): Promise<boolean> {
     if (this.isConnected) {
       return true;
-      // return `${this.typeDevice} device ${this.deviceNumber} already connected`;
     }
 
     this.__internal__.serial.aux_connecting = "idle";
 
     return new Promise((resolve: (value: boolean) => void, reject: (reason: string) => void): void => {
-      if (!supportWebSerial()) {
-        reject(`Web Serial not supported`);
-      }
-
       if (!this.#boundFinishConnecting) {
         this.#boundFinishConnecting = this.#onFinishConnecting.bind(this);
       }
 
       this.on("internal:connecting", this.#boundFinishConnecting);
 
+      // @ts-expect-error interval is number in browser
       const interval: number = setInterval((): void => {
         if (this.__internal__.serial.aux_connecting === "finished") {
           clearInterval(interval);
@@ -597,39 +797,30 @@ export class Core extends Dispatcher implements ICore {
       }, 100);
 
       this.serialConnect();
-
-      // setTimeout(async (): Promise<void> => {
-      //   // await wait(499);
-      //   this.serialConnect();//.then(()=>{}).catch((): void => {});
-
-      //   if (this.isConnected) {
-      //     resolve(true);
-      //     // resolve(`${this.typeDevice} device ${this.deviceNumber} connected`);
-      //   } else {
-      //     reject(false);
-      //     //reject(`${this.typeDevice} device ${this.deviceNumber} not connected`);
-      //   }
-      // }, 1);
     });
   }
 
   public async serialDisconnect(): Promise<void> {
     try {
-      const reader: ReadableStreamDefaultReader<Uint8Array> | null = this.__internal__.serial.reader;
-      const output_stream: WritableStream<Uint8Array> | null = this.__internal__.serial.output_stream;
-      if (reader) {
-        const reader_promise: Promise<void> = reader.cancel();
-        await reader_promise.catch((err: unknown): void => this.serialErrors(err));
-        await this.__internal__.serial.input_done;
-      }
+      if (this.useSocket) {
+        Socket.disconnectDevice(this.configDeviceSocket);
+      } else {
+        const reader: ReadableStreamDefaultReader<Uint8Array> | null = this.__internal__.serial.reader;
+        const output_stream: WritableStream<Uint8Array> | null = this.__internal__.serial.output_stream;
+        if (reader) {
+          const reader_promise: Promise<void> = reader.cancel();
+          await reader_promise.catch((err: unknown): void => this.serialErrors(err));
+          await this.__internal__.serial.input_done;
+        }
 
-      if (output_stream) {
-        await output_stream.getWriter().close();
-        await this.__internal__.serial.output_done;
-      }
+        if (output_stream) {
+          await output_stream.getWriter().close();
+          await this.__internal__.serial.output_done;
+        }
 
-      if (this.__internal__.serial.connected && this.__internal__.serial && this.__internal__.serial.port) {
-        await this.__internal__.serial.port.close();
+        if (this.__internal__.serial.connected && this.__internal__.serial && this.__internal__.serial.port) {
+          await this.__internal__.serial.port.close();
+        }
       }
     } catch (err: unknown) {
       this.serialErrors(err);
@@ -646,7 +837,21 @@ export class Core extends Dispatcher implements ICore {
     }
   }
 
+  async #serialSocketWrite(data: string | Uint8Array | Array<string> | Array<number>): Promise<void> {
+    if (this.isDisconnected) {
+      this.#disconnected({ error: "Port is closed, not readable or writable." });
+      throw new Error("The port is closed or is not readable/writable");
+    }
+
+    const bytes: Uint8Array = this.validateBytes(data);
+    Socket.write({ config: this.configDeviceSocket, bytes: Array.from(bytes) });
+  }
+
   async #serialWrite(data: string | Uint8Array | Array<string> | Array<number>): Promise<void> {
+    if (this.useSocket) {
+      await this.#serialSocketWrite(data);
+      return;
+    }
     const port: SerialPort | null = this.__internal__.serial.port;
     if (!port || (port && (!port.readable || !port.writable))) {
       this.#disconnected({ error: "Port is closed, not readable or writable." });
@@ -1037,54 +1242,67 @@ export class Core extends Dispatcher implements ICore {
     try {
       this.#connectingChange(true);
 
-      const ports: SerialPort[] = await this.#serialPortsFiltered();
-      if (ports.length > 0) {
-        await this.serialPortsSaved(ports);
-      } else {
-        const filters: SerialPortFilter[] = this.serialFilters;
-        this.__internal__.serial.port = await navigator.serial.requestPort({
-          filters,
+      if (this.useSocket) {
+        Socket.prepare();
+        this.__internal__.serial.last_action = "connect";
+        this.__internal__.timeout.until_response = setTimeout(async (): Promise<void> => {
+          await this.timeout(this.__internal__.serial.bytes_connection ?? [], "connection:start");
+        }, this.__internal__.time.response_connection);
+        Socket.connectDevice(this.configDeviceSocket);
+        this.dispatch("serial:sent", {
+          action: "connect",
+          bytes: this.__internal__.serial.bytes_connection,
         });
-      }
-
-      const port: SerialPort | null = this.__internal__.serial.port;
-      if (!port) {
-        throw new Error("No port selected by the user");
-      }
-      await port.open(this.serialConfigPort);
-      // eslint-disable-next-line @typescript-eslint/no-this-alias
-      const this1: this = this;
-      port.onconnect = (event: Event): void => {
-        // console.log(event);
-        this1.dispatch("serial:connected", event);
-        this1.#connectingChange(false);
-        Devices.$dispatchChange(this);
-        if (this1.__internal__.serial.queue.length > 0) {
-          this1.dispatch("internal:queue", {});
+      } else {
+        const ports: SerialPort[] = await this.#serialPortsFiltered();
+        if (ports.length > 0) {
+          await this.serialPortsSaved(ports);
+        } else {
+          const filters: SerialPortFilter[] = this.serialFilters;
+          this.__internal__.serial.port = await navigator.serial.requestPort({
+            filters,
+          });
         }
-      };
-      port.ondisconnect = async (): Promise<void> => {
-        await this1.disconnect();
-      };
 
-      await wait(this.__internal__.serial.delay_first_connection);
+        const port: SerialPort | null = this.__internal__.serial.port;
+        if (!port) {
+          throw new Error("No port selected by the user");
+        }
+        await port.open(this.serialConfigPort);
+        // eslint-disable-next-line @typescript-eslint/no-this-alias
+        const this1: this = this;
+        port.onconnect = (event: Event): void => {
+          // console.log(event);
+          this1.dispatch("serial:connected", event);
+          this1.#connectingChange(false);
+          Devices.$dispatchChange(this);
+          if (this1.__internal__.serial.queue.length > 0) {
+            this1.dispatch("internal:queue", {});
+          }
+        };
+        port.ondisconnect = async (): Promise<void> => {
+          await this1.disconnect();
+        };
 
-      this.__internal__.timeout.until_response = setTimeout(async (): Promise<void> => {
-        await this1.timeout(this1.__internal__.serial.bytes_connection ?? [], "connection:start");
-      }, this.__internal__.time.response_connection);
+        await wait(this.__internal__.serial.delay_first_connection);
 
-      this.__internal__.serial.last_action = "connect";
-      await this.#serialWrite(this.__internal__.serial.bytes_connection ?? []);
+        this.__internal__.timeout.until_response = setTimeout(async (): Promise<void> => {
+          await this1.timeout(this1.__internal__.serial.bytes_connection ?? [], "connection:start");
+        }, this.__internal__.time.response_connection);
 
-      this.dispatch("serial:sent", {
-        action: "connect",
-        bytes: this.__internal__.serial.bytes_connection,
-      });
+        this.__internal__.serial.last_action = "connect";
+        await this.#serialWrite(this.__internal__.serial.bytes_connection ?? []);
 
-      if (this.__internal__.auto_response) {
-        this.#serialGetResponse(this.__internal__.serial.auto_response);
+        this.dispatch("serial:sent", {
+          action: "connect",
+          bytes: this.__internal__.serial.bytes_connection,
+        });
+
+        if (this.__internal__.auto_response) {
+          this.#serialGetResponse(this.__internal__.serial.auto_response);
+        }
+        await this.#readSerialLoop();
       }
-      await this.#readSerialLoop();
     } catch (e: unknown) {
       this.#connectingChange(false);
       this.serialErrors(e);
@@ -1359,7 +1577,7 @@ export class Core extends Dispatcher implements ICore {
   }
 
   public parseUint8ToHex(array: Uint8Array): string[] {
-    return Array.from(array).map((byte: number): string => byte.toString(16));
+    return Array.from(array).map((byte: number): string => byte.toString(16).padStart(2, "0").toLowerCase());
   }
 
   public parseHexToUint8(array: string[]): Uint8Array {
