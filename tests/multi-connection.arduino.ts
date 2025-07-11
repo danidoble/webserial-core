@@ -110,10 +110,16 @@ function prepareDevice(board: Core): void {
   });
 }
 
-const board = new Arduino();
-// { bypassSerialBytesConnection: true }
+const board = new Arduino({
+  // bypassSerialBytesConnection: true,
+  // socket: true,
+});
 
-const board2 = new Arduino({ no_device: 2 });
+const board2 = new Arduino({ 
+  // bypassSerialBytesConnection: true,
+  // socket: true,
+  no_device: 2 
+});
 
 prepareDevice(board);
 prepareDevice(board2);

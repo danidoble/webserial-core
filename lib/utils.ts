@@ -6,6 +6,9 @@ export function wait(ms: number = 100): Promise<void> {
   );
 }
 
+/*
+ * @deprecated This function is deprecated and will be removed in future versions.
+ */
 export function supportWebSerial(): boolean {
   return "serial" in navigator;
 }

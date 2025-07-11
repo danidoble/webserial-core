@@ -17,6 +17,7 @@ interface ConstructorParams {
   no_device?: number;
   device_listen_on_channel?: number | string;
   bypassSerialBytesConnection?: boolean;
+  socket?: boolean;
 }
 
 export class Arduino extends Core {
@@ -33,6 +34,7 @@ export class Arduino extends Core {
       },
       no_device = 1,
       bypassSerialBytesConnection = false,
+      socket = false,
     } : ConstructorParams = {
       filters: null,
       config_port: {
@@ -45,9 +47,10 @@ export class Arduino extends Core {
       },
       no_device: 1,
       bypassSerialBytesConnection: false,
+      socket: false,
     },
   ) {
-    super({ filters, config_port, no_device, bypassSerialBytesConnection });
+    super({ filters, config_port, no_device, bypassSerialBytesConnection, socket });
     
     this.__internal__.device.type = "arduino";
     Devices.registerType(this.__internal__.device.type);

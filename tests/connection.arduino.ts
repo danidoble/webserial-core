@@ -5,9 +5,10 @@ document.addEventListener("DOMContentLoaded", (): void => {
   if (!logElement) logElement = document.getElementById("log");
 });
 
-const board = new Arduino(
-  // { bypassSerialBytesConnection: true }
-);
+const board = new Arduino({
+  // bypassSerialBytesConnection: true 
+  // socket: true
+});
 
 // board.__debug__ = true;
 // board.on("debug", (event): void => {
