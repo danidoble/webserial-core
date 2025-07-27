@@ -775,7 +775,6 @@ export class Core extends Dispatcher implements ICore {
 
       this.on("internal:connecting", this.#boundFinishConnecting);
 
-      // @ts-expect-error interval is number in browser
       const interval: number = setInterval((): void => {
         if (this.__internal__.serial.aux_connecting === "finished") {
           clearInterval(interval);
