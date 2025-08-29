@@ -11,10 +11,10 @@
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "moduleDetection": "force",
-    "declaration": true, // Added
-    "emitDeclarationOnly": true, // Added: Vite will handle JS bundling
-    "declarationMap": true, // Added: For better source mapping of declarations
-    "outDir": "dist", // Added: Output directory for declarations
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationMap": true,
+    "outDir": "dist",
 
     /* Linting */
     "strict": true,
