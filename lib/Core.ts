@@ -52,6 +52,7 @@ type SerialData = {
   filters: SerialPortFilter[];
   config_port: SerialOptions;
   queue: QueueData[];
+  running_queue: boolean;
   auto_response: any;
   free_timeout_ms: number;
   useRTSCTS: boolean;
@@ -276,6 +277,7 @@ export class Core extends Dispatcher implements ICore {
       filters: [],
       config_port: defaultConfigPort,
       queue: [],
+      running_queue: false,
       auto_response: ["DD", "DD"],
       free_timeout_ms: 50, // In previous versions 400 was used
       useRTSCTS: false, // Use RTS/CTS flow control
@@ -534,6 +536,10 @@ export class Core extends Dispatcher implements ICore {
       await this.serialConnect();
     }
 
+    if (this.__internal__.serial.queue.length > 0) {
+      this.dispatch("internal:queue", {});
+    }
+
     this.dispatch("serial:timeout", {
       ...this.__internal__.last_error,
       bytes,
@@ -738,7 +744,10 @@ export class Core extends Dispatcher implements ICore {
       }
     }
 
-    if (this.__internal__.serial.queue.length === 0) return;
+    if (this.__internal__.serial.queue.length === 0) {
+      this.__internal__.serial.running_queue = false;
+      return;
+    }
     this.dispatch("internal:queue", {});
   }
 
@@ -1061,6 +1070,8 @@ export class Core extends Dispatcher implements ICore {
         Devices.$dispatchChange(this);
         if (this1.__internal__.serial.queue.length > 0) {
           this1.dispatch("internal:queue", {});
+        } else {
+          this1.__internal__.serial.running_queue = false;
         }
       };
       port.ondisconnect = async (): Promise<void> => {
@@ -1185,7 +1196,11 @@ export class Core extends Dispatcher implements ICore {
     // check if something is waiting for a response, when response arrives, the queue will be processed
     if (this.__internal__.timeout.until_response) return;
 
-    if (this.__internal__.serial.queue.length === 0) return;
+    if (this.__internal__.serial.queue.length === 0) {
+      this.__internal__.serial.running_queue = false;
+      return;
+    }
+    this.__internal__.serial.running_queue = true;
 
     // first element in queue
     const first: QueueData = this.__internal__.serial.queue[0];
@@ -1218,6 +1233,11 @@ export class Core extends Dispatcher implements ICore {
     }
     const copy_queue: QueueData[] = [...this.__internal__.serial.queue];
     this.__internal__.serial.queue = copy_queue.splice(1);
+
+    if (this.__internal__.serial.queue.length > 0) {
+      this.__internal__.serial.running_queue = true;
+      //this.dispatch("internal:queue", {});
+    }
   }
 
   public validateBytes(data: string | Uint8Array | Array<string> | Array<number>): Uint8Array {

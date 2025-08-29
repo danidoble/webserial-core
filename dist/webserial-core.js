@@ -172,6 +172,7 @@ class b extends y {
       filters: [],
       config_port: d,
       queue: [],
+      running_queue: !1,
       auto_response: ["DD", "DD"],
       free_timeout_ms: 50,
       // In previous versions 400 was used
@@ -326,7 +327,7 @@ class b extends y {
     return !!(e && e.readable && e.writable);
   }
   async timeout(e, t) {
-    this.__internal__.last_error.message = "Operation response timed out.", this.__internal__.last_error.action = t, this.__internal__.last_error.code = e, this.__internal__.timeout.until_response && (clearTimeout(this.__internal__.timeout.until_response), this.__internal__.timeout.until_response = 0), t === "connect" ? (this.__internal__.serial.connected = !1, this.dispatch("serial:reconnect", {}), s.$dispatchChange(this)) : t === "connection:start" && (await this.serialDisconnect(), this.__internal__.serial.connected = !1, this.__internal__.aux_port_connector += 1, s.$dispatchChange(this), await this.serialConnect()), this.dispatch("serial:timeout", {
+    this.__internal__.last_error.message = "Operation response timed out.", this.__internal__.last_error.action = t, this.__internal__.last_error.code = e, this.__internal__.timeout.until_response && (clearTimeout(this.__internal__.timeout.until_response), this.__internal__.timeout.until_response = 0), t === "connect" ? (this.__internal__.serial.connected = !1, this.dispatch("serial:reconnect", {}), s.$dispatchChange(this)) : t === "connection:start" && (await this.serialDisconnect(), this.__internal__.serial.connected = !1, this.__internal__.aux_port_connector += 1, s.$dispatchChange(this), await this.serialConnect()), this.__internal__.serial.queue.length > 0 && this.dispatch("internal:queue", {}), this.dispatch("serial:timeout", {
       ...this.__internal__.last_error,
       bytes: e,
       action: t
@@ -365,11 +366,11 @@ class b extends y {
     if (!t || t && (!t.readable || !t.writable))
       throw this.#s({ error: "Port is closed, not readable or writable." }), new Error("The port is closed or is not readable/writable");
     const i = this.validateBytes(e);
-    if (this.useRTSCTS && await this.#o(t, 5e3), t.writable === null) return;
+    if (this.useRTSCTS && await this.#l(t, 5e3), t.writable === null) return;
     const n = t.writable.getWriter();
     await n.write(i), n.releaseLock();
   }
-  async #o(e, t = 5e3) {
+  async #l(e, t = 5e3) {
     const i = Date.now();
     for (; ; ) {
       if (Date.now() - i > t)
@@ -399,7 +400,11 @@ class b extends y {
         t ? this.serialCorruptMessage(n) : this.serialMessage(n);
       }
     }
-    this.__internal__.serial.queue.length !== 0 && this.dispatch("internal:queue", {});
+    if (this.__internal__.serial.queue.length === 0) {
+      this.__internal__.serial.running_queue = !1;
+      return;
+    }
+    this.dispatch("internal:queue", {});
   }
   getResponseAsArrayBuffer() {
     this.__internal__.serial.response.as = "arraybuffer";
@@ -413,7 +418,7 @@ class b extends y {
   getResponseAsString() {
     this.__internal__.serial.response.as = "string";
   }
-  async #l() {
+  async #o() {
     const e = this.serialFilters, t = await navigator.serial.getPorts({ filters: e });
     return e.length === 0 ? t : t.filter((n) => {
       const a = n.getInfo();
@@ -517,41 +522,41 @@ class b extends y {
     let r = new TextDecoder().decode(n);
     const c = [];
     if (typeof e == "string") {
-      let o;
+      let l;
       if (t && i)
-        o = new RegExp(`${e}([^${e}]+)${e}`, "g");
+        l = new RegExp(`${e}([^${e}]+)${e}`, "g");
       else if (t)
-        o = new RegExp(`${e}([^${e}]*)`, "g");
+        l = new RegExp(`${e}([^${e}]*)`, "g");
       else if (i)
-        o = new RegExp(`([^${e}]+)${e}`, "g");
+        l = new RegExp(`([^${e}]+)${e}`, "g");
       else
         return;
-      let _, l = 0;
-      for (; (_ = o.exec(r)) !== null; )
-        c.push(new TextEncoder().encode(_[1])), l = o.lastIndex;
-      r = r.slice(l);
+      let _, o = 0;
+      for (; (_ = l.exec(r)) !== null; )
+        c.push(new TextEncoder().encode(_[1])), o = l.lastIndex;
+      r = r.slice(o);
     } else if (e instanceof RegExp) {
-      let o, _ = 0;
+      let l, _ = 0;
       if (t && i) {
-        const l = new RegExp(`${e.source}(.*?)${e.source}`, "g");
-        for (; (o = l.exec(r)) !== null; )
-          c.push(new TextEncoder().encode(o[1])), _ = l.lastIndex;
+        const o = new RegExp(`${e.source}(.*?)${e.source}`, "g");
+        for (; (l = o.exec(r)) !== null; )
+          c.push(new TextEncoder().encode(l[1])), _ = o.lastIndex;
       } else if (i)
-        for (; (o = e.exec(r)) !== null; ) {
-          const l = o.index, u = r.slice(_, l);
+        for (; (l = e.exec(r)) !== null; ) {
+          const o = l.index, u = r.slice(_, o);
           c.push(new TextEncoder().encode(u)), _ = e.lastIndex;
         }
       else if (t) {
-        const l = r.split(e);
-        l.shift();
-        for (const u of l)
+        const o = r.split(e);
+        o.shift();
+        for (const u of o)
           c.push(new TextEncoder().encode(u));
         r = "";
       }
       r = r.slice(_);
     }
-    for (const o of c)
-      this.#e(o);
+    for (const l of c)
+      this.#e(l);
     const f = new TextEncoder().encode(r);
     this.__internal__.serial.response.buffer = f, f.length > 0 && (this.__internal__.serial.time_until_send_bytes = setTimeout(() => {
       this.#e(this.__internal__.serial.response.buffer, !0), this.__internal__.serial.response.buffer = new Uint8Array(0);
@@ -580,7 +585,7 @@ class b extends y {
   async serialConnect() {
     try {
       this.#n(!0);
-      const e = await this.#l();
+      const e = await this.#o();
       if (e.length > 0)
         await this.serialPortsSaved(e);
       else {
@@ -595,7 +600,7 @@ class b extends y {
       await t.open(this.serialConfigPort);
       const i = this;
       t.onconnect = (n) => {
-        i.dispatch("serial:connected", n), i.#n(!1), s.$dispatchChange(this), i.__internal__.serial.queue.length > 0 && i.dispatch("internal:queue", {});
+        i.dispatch("serial:connected", n), i.#n(!1), s.$dispatchChange(this), i.__internal__.serial.queue.length > 0 ? i.dispatch("internal:queue", {}) : i.__internal__.serial.running_queue = !1;
       }, t.ondisconnect = async () => {
         await i.disconnect();
       }, await g(this.__internal__.serial.delay_first_connection), this.__internal__.timeout.until_response = setTimeout(async () => {
@@ -671,7 +676,12 @@ class b extends y {
       this.#s({ error: "Port is closed, not readable or writable." }), await this.serialConnect();
       return;
     }
-    if (this.__internal__.timeout.until_response || this.__internal__.serial.queue.length === 0) return;
+    if (this.__internal__.timeout.until_response) return;
+    if (this.__internal__.serial.queue.length === 0) {
+      this.__internal__.serial.running_queue = !1;
+      return;
+    }
+    this.__internal__.serial.running_queue = !0;
     const e = this.__internal__.serial.queue[0];
     let t = this.__internal__.time.response_general;
     if (e.action === "connect" && (t = this.__internal__.time.response_connection), this.__internal__.timeout.until_response = setTimeout(async () => {
@@ -689,7 +699,7 @@ class b extends y {
       this.#e(n);
     }
     const i = [...this.__internal__.serial.queue];
-    this.__internal__.serial.queue = i.splice(1);
+    this.__internal__.serial.queue = i.splice(1), this.__internal__.serial.queue.length > 0 && (this.__internal__.serial.running_queue = !0);
   }
   validateBytes(e) {
     let t = new Uint8Array(0);
