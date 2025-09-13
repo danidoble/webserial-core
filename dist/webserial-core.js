@@ -726,12 +726,12 @@ function Z() {
   for (let i in g.requests)
     g.requests.hasOwnProperty(i) && g.requests[i].abort();
 }
-const Ue = function() {
+const Ue = (function() {
   const i = ue({
     xdomain: !1
   });
   return i && i.responseType !== null;
-}();
+})();
 class De extends qe {
   constructor(e) {
     super(e);
@@ -2521,6 +2521,7 @@ class ut extends te {
       filters: [],
       config_port: q,
       queue: [],
+      running_queue: !1,
       auto_response: null,
       free_timeout_ms: 50,
       // In previous versions 400 was used
@@ -2781,7 +2782,7 @@ class ut extends te {
     return this.useSocket ? this.__internal__.serial.connected : !!(e && e.readable && e.writable);
   }
   async timeout(e, t) {
-    this.__internal__.last_error.message = "Operation response timed out.", this.__internal__.last_error.action = t, this.__internal__.last_error.code = e, this.__internal__.timeout.until_response && (clearTimeout(this.__internal__.timeout.until_response), this.__internal__.timeout.until_response = 0), t === "connect" ? (this.__internal__.serial.connected = !1, this.dispatch("serial:reconnect", {}), a.$dispatchChange(this)) : t === "connection:start" && (await this.serialDisconnect(), this.__internal__.serial.connected = !1, this.__internal__.aux_port_connector += 1, a.$dispatchChange(this), await this.serialConnect()), this.dispatch("serial:timeout", {
+    this.__internal__.last_error.message = "Operation response timed out.", this.__internal__.last_error.action = t, this.__internal__.last_error.code = e, this.__internal__.timeout.until_response && (clearTimeout(this.__internal__.timeout.until_response), this.__internal__.timeout.until_response = 0), t === "connect" ? (this.__internal__.serial.connected = !1, this.dispatch("serial:reconnect", {}), a.$dispatchChange(this)) : t === "connection:start" && (await this.serialDisconnect(), this.__internal__.serial.connected = !1, this.__internal__.aux_port_connector += 1, a.$dispatchChange(this), await this.serialConnect()), this.__internal__.serial.queue.length > 0 && this.dispatch("internal:queue", {}), this.dispatch("serial:timeout", {
       ...this.__internal__.last_error,
       bytes: e,
       action: t
@@ -2878,7 +2879,11 @@ class ut extends te {
         t ? this.serialCorruptMessage(n) : this.serialMessage(n);
       }
     }
-    this.__internal__.serial.queue.length !== 0 && this.dispatch("internal:queue", {});
+    if (this.__internal__.serial.queue.length === 0) {
+      this.__internal__.serial.running_queue = !1;
+      return;
+    }
+    this.dispatch("internal:queue", {});
   }
   getResponseAsArrayBuffer() {
     this.__internal__.serial.response.as = "arraybuffer";
@@ -3081,7 +3086,7 @@ class ut extends te {
         await t.open(this.serialConfigPort);
         const s = this;
         t.onconnect = (n) => {
-          s.dispatch("serial:connected", n), s.#n(!1), a.$dispatchChange(this), s.__internal__.serial.queue.length > 0 && s.dispatch("internal:queue", {});
+          s.dispatch("serial:connected", n), s.#n(!1), a.$dispatchChange(this), s.__internal__.serial.queue.length > 0 ? s.dispatch("internal:queue", {}) : s.__internal__.serial.running_queue = !1;
         }, t.ondisconnect = async () => {
           await s.disconnect();
         }, await Q(this.__internal__.serial.delay_first_connection), this.__internal__.timeout.until_response = setTimeout(async () => {
@@ -3158,7 +3163,12 @@ class ut extends te {
       this.#e({ error: "Port is closed, not readable or writable." }), await this.serialConnect();
       return;
     }
-    if (this.__internal__.timeout.until_response || this.__internal__.serial.queue.length === 0) return;
+    if (this.__internal__.timeout.until_response) return;
+    if (this.__internal__.serial.queue.length === 0) {
+      this.__internal__.serial.running_queue = !1;
+      return;
+    }
+    this.__internal__.serial.running_queue = !0;
     const e = this.__internal__.serial.queue[0];
     let t = this.__internal__.time.response_general;
     if (e.action === "connect" && (t = this.__internal__.time.response_connection), this.__internal__.timeout.until_response = setTimeout(async () => {
@@ -3176,7 +3186,7 @@ class ut extends te {
       this.#i(n);
     }
     const s = [...this.__internal__.serial.queue];
-    this.__internal__.serial.queue = s.splice(1);
+    this.__internal__.serial.queue = s.splice(1), this.__internal__.serial.queue.length > 0 && (this.__internal__.serial.running_queue = !0);
   }
   validateBytes(e) {
     let t = new Uint8Array(0);

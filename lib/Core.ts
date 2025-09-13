@@ -68,6 +68,7 @@ type SerialData = {
   filters: SerialPortFilter[];
   config_port: SerialOptions;
   queue: QueueData[];
+  running_queue: boolean;
   auto_response: any;
   free_timeout_ms: number;
   useRTSCTS: boolean;
@@ -304,6 +305,7 @@ export class Core extends Dispatcher implements ICore {
       filters: [],
       config_port: defaultConfigPort,
       queue: [],
+      running_queue: false,
       auto_response: null,
       free_timeout_ms: 50, // In previous versions 400 was used
       useRTSCTS: false, // Use RTS/CTS flow control
@@ -710,6 +712,10 @@ export class Core extends Dispatcher implements ICore {
       await this.serialConnect();
     }
 
+    if (this.__internal__.serial.queue.length > 0) {
+      this.dispatch("internal:queue", {});
+    }
+
     this.dispatch("serial:timeout", {
       ...this.__internal__.last_error,
       bytes,
@@ -933,16 +939,19 @@ export class Core extends Dispatcher implements ICore {
           }
         }
       } else {
-        const arraybuffer: ArrayBuffer = this.stringToArrayBuffer(this.parseUint8ArrayToString(code));
+        const arraybuffer: ArrayBuffer | ArrayBufferLike = this.stringToArrayBuffer(this.parseUint8ArrayToString(code));
         if (corrupt) {
-          this.serialCorruptMessage(arraybuffer);
+          this.serialCorruptMessage(arraybuffer as ArrayBuffer);
         } else {
-          this.serialMessage(arraybuffer);
+          this.serialMessage(arraybuffer as ArrayBuffer);
         }
       }
     }
 
-    if (this.__internal__.serial.queue.length === 0) return;
+    if (this.__internal__.serial.queue.length === 0) {
+      this.__internal__.serial.running_queue = false;
+      return;
+    }
     this.dispatch("internal:queue", {});
   }
 
@@ -1277,6 +1286,8 @@ export class Core extends Dispatcher implements ICore {
           Devices.$dispatchChange(this);
           if (this1.__internal__.serial.queue.length > 0) {
             this1.dispatch("internal:queue", {});
+          } else {
+            this1.__internal__.serial.running_queue = false;
           }
         };
         port.ondisconnect = async (): Promise<void> => {
@@ -1402,7 +1413,11 @@ export class Core extends Dispatcher implements ICore {
     // check if something is waiting for a response, when response arrives, the queue will be processed
     if (this.__internal__.timeout.until_response) return;
 
-    if (this.__internal__.serial.queue.length === 0) return;
+    if (this.__internal__.serial.queue.length === 0) {
+      this.__internal__.serial.running_queue = false;
+      return;
+    }
+    this.__internal__.serial.running_queue = true;
 
     // first element in queue
     const first: QueueData = this.__internal__.serial.queue[0];
@@ -1435,6 +1450,11 @@ export class Core extends Dispatcher implements ICore {
     }
     const copy_queue: QueueData[] = [...this.__internal__.serial.queue];
     this.__internal__.serial.queue = copy_queue.splice(1);
+
+    if (this.__internal__.serial.queue.length > 0) {
+      this.__internal__.serial.running_queue = true;
+      //this.dispatch("internal:queue", {});
+    }
   }
 
   public validateBytes(data: string | Uint8Array | Array<string> | Array<number>): Uint8Array {
@@ -1586,7 +1606,7 @@ export class Core extends Dispatcher implements ICore {
   public stringArrayToUint8Array(strings: string[]): Uint8Array {
     const bytes: number[] = [];
     if (typeof strings === "string") {
-      return this.parseStringToTextEncoder(strings).buffer as Uint8Array;
+      return this.parseStringToTextEncoder(strings).buffer as unknown as Uint8Array;
     }
     strings.forEach((str: string): void => {
       const hex = str.replace("0x", "");

@@ -57,6 +57,7 @@ type SerialData = {
     filters: SerialPortFilter[];
     config_port: SerialOptions;
     queue: QueueData[];
+    running_queue: boolean;
     auto_response: any;
     free_timeout_ms: number;
     useRTSCTS: boolean;
