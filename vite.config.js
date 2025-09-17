@@ -13,9 +13,10 @@ export default defineConfig({
       fileName: "webserial-core",
     },
     rollupOptions: {
-      external: [],
+      external: ["socket.io-client"],
       output: {
         globals: {
+          "socket.io-client": "io",
         },
       },
     },
