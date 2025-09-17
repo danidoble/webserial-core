@@ -15,7 +15,6 @@
     "emitDeclarationOnly": true,
     "declarationMap": true,
     "outDir": "dist/types",
-    "composite": true,
 
     /* Linting */
     "strict": true,
