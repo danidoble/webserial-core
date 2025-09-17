@@ -1,4 +1,4 @@
-import { SerialEvent } from "./SerialEvent.ts";
+import { SerialEvent } from "./SerialEvent";
 
 type AvailableListener = { type: string; listening: boolean };
 type AvailableListeners = AvailableListener[];

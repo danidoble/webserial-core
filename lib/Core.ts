@@ -1,7 +1,7 @@
-import { Dispatcher } from "./Dispatcher.ts";
-import { Devices } from "./Devices.ts";
-import { wait } from "./utils.ts";
-import { Socket } from "./Socket.ts";
+import { Dispatcher } from "./Dispatcher";
+import { Devices } from "./Devices";
+import { wait } from "./utils";
+import { Socket } from "./Socket";
 
 interface LastError {
   message: string | null;

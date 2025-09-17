@@ -1,4 +1,4 @@
-import { Dispatcher } from "./Dispatcher.ts";
+import { Dispatcher } from "./Dispatcher";
 interface LastError {
     message: string | null;
     action: string | null;

@@ -1,5 +1,5 @@
-import { Core } from "./Core.ts";
-import { Dispatcher } from "./Dispatcher.ts";
+import { Core } from "./Core";
+import { Dispatcher } from "./Dispatcher";
 
 interface IDevice {
   [key: string]: Core;
