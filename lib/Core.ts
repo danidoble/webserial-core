@@ -781,7 +781,7 @@ export class Core extends Dispatcher implements ICore {
 
       this.on("internal:connecting", this.#boundFinishConnecting);
 
-      const interval: number = setInterval((): void => {
+      const interval: ReturnType<typeof setInterval> = setInterval((): void => {
         if (this.__internal__.serial.aux_connecting === "finished") {
           clearInterval(interval);
           this.__internal__.serial.aux_connecting = "idle";
