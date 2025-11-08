@@ -9,6 +9,11 @@ interface IDevices {
   [key: string]: IDevice;
 }
 
+/**
+ * Manages and tracks all serial devices in the application
+ * Provides a centralized registry for device instances
+ * @extends Dispatcher
+ */
 export class Devices extends Dispatcher {
   static instance: Devices;
   static devices: IDevices = {};
@@ -37,12 +42,28 @@ export class Devices extends Dispatcher {
     throw error;
   }
 
+  /**
+   * Registers a new device type in the registry
+   * @param type - The type name of the device (e.g., 'arduino', 'esp32')
+   * @internal
+   */
   public static registerType(type: string): void {
     if (typeof Devices.devices[type] === "undefined") {
       Devices.devices = { ...Devices.devices, [type]: {} };
     }
   }
 
+  /**
+   * Adds a device to the registry
+   * @param device - The Core device instance to add
+   * @returns The index of the device in its type registry
+   * @throws {Error} If device with the same ID already exists
+   * @example
+   * ```typescript
+   * const arduino = new Arduino();
+   * Devices.add(arduino);
+   * ```
+   */
   public static add(device: Core): number {
     const type = device.typeDevice;
     if (typeof Devices.devices[type] === "undefined") {
@@ -63,6 +84,17 @@ export class Devices extends Dispatcher {
     return Object.keys(Devices.devices[type]).indexOf(id);
   }
 
+  /**
+   * Gets a specific device by type and UUID
+   * @param type - The device type
+   * @param id - The device UUID
+   * @returns The device instance
+   * @throws {Error} If the device type is not supported
+   * @example
+   * ```typescript
+   * const device = Devices.get('arduino', 'uuid-123');
+   * ```
+   */
   public static get(type: string, id: string): Core {
     if (typeof Devices.devices[type] === "undefined") {
       Devices.registerType(type);

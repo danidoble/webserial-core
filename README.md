@@ -1,6 +1,10 @@
 # WebSerial Core
 
-And easy way to connect to a serial port from a web page.
+An easy way to connect to a serial port from a web page.
+
+[![CI](https://github.com/danidoble/webserial-core/actions/workflows/ci.yml/badge.svg)](https://github.com/danidoble/webserial-core/actions/workflows/ci.yml)
+[![npm version](https://badge.fury.io/js/webserial-core.svg)](https://www.npmjs.com/package/webserial-core)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > [!NOTE]
 > Since version 1.0.7 default response is an instance of Uint8Array.
@@ -10,6 +14,17 @@ And easy way to connect to a serial port from a web page.
 > `this.getResponseAsUint8Array()`
 > `this.getResponseAsString()`
 > Only choose one of them.
+
+## Features
+
+- 🔌 Easy serial port connection from web browsers
+- 🎯 TypeScript support with full type definitions
+- 🧪 Comprehensive test suite with Vitest
+- 📦 Multiple module formats (ESM, UMD)
+- 🔍 Source maps for debugging
+- 🌐 Socket.io integration for remote connections
+- ⚡ Event-driven architecture
+- 🛡️ Custom error handling with `SerialError`
 
 ## Installation
 

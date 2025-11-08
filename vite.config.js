@@ -7,6 +7,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   build: {
     emptyOutDir: false,
+    sourcemap: true,
     lib: {
       entry: resolve(__dirname, "lib/main.ts"),
       name: "WebSerialCore",

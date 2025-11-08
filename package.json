@@ -42,20 +42,46 @@
     "build": "rm -rf dist && prettier --write ./lib/**/*.ts && tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint --ext .ts ./lib",
-    "format": "prettier --write ./lib/**/*.ts"
+    "format": "prettier --write ./lib/**/*.ts",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "prepare": "husky"
   },
   "peerDependencies": {
     "socket.io-client": "^4.8.1"
   },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "devDependencies": {
-    "@eslint/js": "^9.35.0",
+    "@commitlint/cli": "^20.1.0",
+    "@commitlint/config-conventional": "^20.0.0",
+    "@eslint/js": "^9.39.1",
     "@types/w3c-web-serial": "^1.0.8",
-    "eslint": "^9.35.0",
-    "globals": "^16.4.0",
+    "@vitest/coverage-v8": "^4.0.8",
+    "@vitest/ui": "^4.0.8",
+    "eslint": "^9.39.1",
+    "globals": "^16.5.0",
+    "happy-dom": "^20.0.10",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6",
     "prettier": "3.6.2",
-    "typescript": "~5.9.2",
-    "typescript-eslint": "^8.44.0",
-    "vite": "^7.1.5"
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.46.3",
+    "vite": "^7.2.2",
+    "vitest": "^4.0.8"
+  },
+  "lint-staged": {
+    "lib/**/*.ts": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "tests/**/*.ts": [
+      "prettier --write",
+      "eslint --fix"
+    ]
   },
   "publishConfig": {
     "access": "public"

@@ -1,9 +1,16 @@
-import { io, ManagerOptions, SocketOptions } from "socket.io-client";
+import { io, ManagerOptions, SocketOptions, Socket as SocketIOClient } from "socket.io-client";
 import { Devices } from "./Devices";
 import { Core } from "./Core";
 
+interface SocketResponseData {
+  name: string;
+  uuid: string;
+  deviceNumber: number;
+  [key: string]: unknown;
+}
+
 type BoundedFunction = {
-  onResponse?: (data: any) => void;
+  onResponse: (data: SocketResponseData) => void;
 };
 
 class MySocket {
@@ -11,10 +18,16 @@ class MySocket {
   #options: Partial<ManagerOptions & SocketOptions> = {
     transports: ["websocket"],
   };
-  #socket: any;
+  #socket: SocketIOClient | null = null;
   #connected: boolean = false;
 
-  #boundedFun: BoundedFunction = {};
+  #boundedFun: BoundedFunction;
+
+  constructor() {
+    this.#boundedFun = {
+      onResponse: this.onResponse.bind(this),
+    };
+  }
 
   set uri(uri: string) {
     const url = new URL(uri);
@@ -40,10 +53,6 @@ class MySocket {
     return this.#options;
   }
 
-  constructor() {
-    this.#boundedFun.onResponse = this.onResponse.bind(this);
-  }
-
   disconnect() {
     if (this.#socket) {
       this.#socket.off("response", this.#boundedFun.onResponse);
@@ -63,23 +72,35 @@ class MySocket {
     this.#socket.on("response", this.#boundedFun.onResponse);
   }
 
-  connectDevice(config: object) {
+  connectDevice(config: object): void {
+    if (!this.#socket) {
+      throw new Error("Socket not connected. Call prepare() first.");
+    }
     this.#socket.emit("connectDevice", { config });
   }
 
-  disconnectDevice(config: object) {
+  disconnectDevice(config: object): void {
+    if (!this.#socket) {
+      throw new Error("Socket not connected. Call prepare() first.");
+    }
     this.#socket.emit("disconnectDevice", { config });
   }
 
-  disconnectAllDevices() {
+  disconnectAllDevices(): void {
+    if (!this.#socket) {
+      throw new Error("Socket not connected. Call prepare() first.");
+    }
     this.#socket.emit("disconnectAll");
   }
 
   write(data: object): void {
+    if (!this.#socket) {
+      throw new Error("Socket not connected. Call prepare() first.");
+    }
     this.#socket.emit("cmd", data);
   }
 
-  onResponse(data: any) {
+  onResponse(data: SocketResponseData): void {
     let device: Core | null = Devices.get(data.name, data.uuid);
     if (!device) {
       device = Devices.getByNumber(data.name, data.deviceNumber);

@@ -11,4 +11,5 @@ export { Core } from "./Core";
 export { Devices } from "./Devices";
 export { Dispatcher } from "./Dispatcher";
 export { Socket } from "./Socket";
+export { SerialError, SerialErrorCode } from "./SerialError";
 //# sourceMappingURL=main.d.ts.map
