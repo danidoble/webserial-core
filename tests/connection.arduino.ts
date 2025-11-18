@@ -7,8 +7,9 @@ document.addEventListener("DOMContentLoaded", (): void => {
 
 const board = new Arduino({
   // bypassSerialBytesConnection: true 
-  // socket: true
+  // socket: true,
 });
+// board.portPath='/dev/ttyUSB0';
 
 // board.__debug__ = true;
 // board.on("debug", (event): void => {
