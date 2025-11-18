@@ -687,7 +687,9 @@ export class Core extends Dispatcher implements ICore {
   }
 
   #checkIfPortIsOpen(port: SerialPort | null): boolean {
-    if (this.useSocket) return this.__internal__.serial.connected;
+    if (this.useSocket) {
+      return this.__internal__.serial.connected && Socket.isConnected();
+    }
 
     return !!(port && port.readable && port.writable);
   }
@@ -808,7 +810,9 @@ export class Core extends Dispatcher implements ICore {
   public async serialDisconnect(): Promise<void> {
     try {
       if (this.useSocket) {
-        Socket.disconnectDevice(this.configDeviceSocket);
+        if (Socket.isConnected()) {
+          Socket.disconnectDevice(this.configDeviceSocket);
+        }
       } else {
         const reader: ReadableStreamDefaultReader<Uint8Array> | null = this.__internal__.serial.reader;
         const output_stream: WritableStream<Uint8Array> | null = this.__internal__.serial.output_stream;
@@ -843,6 +847,11 @@ export class Core extends Dispatcher implements ICore {
   }
 
   async #serialSocketWrite(data: string | Uint8Array | Array<string> | Array<number>): Promise<void> {
+    if (Socket.isDisconnected()) {
+      this.#disconnected({ error: "Socket is disconnected." });
+      throw new Error("The socket is disconnected");
+    }
+
     if (this.isDisconnected) {
       this.#disconnected({ error: "Port is closed, not readable or writable." });
       throw new Error("The port is closed or is not readable/writable");
@@ -1256,6 +1265,9 @@ export class Core extends Dispatcher implements ICore {
         this.__internal__.timeout.until_response = setTimeout(async (): Promise<void> => {
           await this.timeout(this.__internal__.serial.bytes_connection ?? [], "connection:start");
         }, this.__internal__.time.response_connection);
+        if (Socket.isDisconnected()) {
+          return;
+        }
         Socket.connectDevice(this.configDeviceSocket);
         this.dispatch("serial:sent", {
           action: "connect",
@@ -1391,6 +1403,21 @@ export class Core extends Dispatcher implements ICore {
       await this1.#runQueue();
     });
 
+    const onSerialSocketDisconnect = (): void => {
+      if (this1.isConnected) {
+        this1.#disconnected({ error: "Socket disconnected." });
+      }
+    };
+    const onSerialSocketConnect = (): void => {
+      if (this1.isDisconnected && !this1.isConnecting) {
+        this1.serialConnect().catch((): void => {});
+      }
+    };
+    if (this.useSocket) {
+      window.addEventListener("serial:socket:disconnected", onSerialSocketDisconnect);
+      window.addEventListener("serial:socket:connected", onSerialSocketConnect);
+    }
+
     this.#browserEvents();
   }
 
@@ -1404,6 +1431,14 @@ export class Core extends Dispatcher implements ICore {
   }
 
   async #runQueue(): Promise<void> {
+    if (this.useSocket && Socket.isDisconnected()) {
+      // socket disconnected, by default socket.io will try to reconnect
+      // just wait for reconnection, until then, do not process the queue
+      // but keep stop the queue processing, will start when socket reconnects and
+      // properly emits the 'serial:socket:connected' event to connect again the device
+      // then the queue will be processed again
+      return;
+    }
     if (!this.#checkIfPortIsOpen(this.__internal__.serial.port)) {
       this.#disconnected({ error: "Port is closed, not readable or writable." });
       await this.serialConnect();

@@ -12,6 +12,7 @@ declare class MySocket {
     get uri(): string;
     set options(options: Partial<ManagerOptions & SocketOptions>);
     get options(): Partial<ManagerOptions & SocketOptions>;
+    get socketId(): string | null;
     disconnect(): void;
     prepare(): void;
     connectDevice(config: object): void;
@@ -19,6 +20,8 @@ declare class MySocket {
     disconnectAllDevices(): void;
     write(data: object): void;
     onResponse(data: SocketResponseData): void;
+    isConnected(): boolean;
+    isDisconnected(): boolean;
 }
 export declare const Socket: MySocket;
 export {};
