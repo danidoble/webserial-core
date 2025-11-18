@@ -1,10 +1,8 @@
 # WebSerial Core
 
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/danidoble/webserial-core)
-
 An easy way to connect to a serial port from a web page.
 
-[![CI](https://github.com/danidoble/webserial-core/actions/workflows/ci.yml/badge.svg)](https://github.com/danidoble/webserial-core/actions/workflows/ci.yml)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/danidoble/webserial-core)
 [![npm version](https://badge.fury.io/js/webserial-core.svg)](https://www.npmjs.com/package/webserial-core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
