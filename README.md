@@ -1,5 +1,7 @@
 # WebSerial Core
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/danidoble/webserial-core)
+
 An easy way to connect to a serial port from a web page.
 
 [![CI](https://github.com/danidoble/webserial-core/actions/workflows/ci.yml/badge.svg)](https://github.com/danidoble/webserial-core/actions/workflows/ci.yml)
