@@ -17,7 +17,7 @@ type BoundedFunction = {
 };
 
 class MySocket {
-  #uri: string = "http://localhost:3000";
+  #uri: string = "http://localhost:3001";
   #options: Partial<ManagerOptions & SocketOptions> = {
     transports: ["websocket"],
   };
@@ -27,7 +27,14 @@ class MySocket {
 
   #boundedFun: BoundedFunction;
 
-  constructor() {
+  constructor(uri?: string, options?: Partial<ManagerOptions & SocketOptions>) {
+    if (uri) {
+      this.#uri = uri;
+    }
+    if (options) {
+      this.#options = { ...this.#options, ...options };
+    }
+
     this.#boundedFun = {
       onResponse: this.onResponse.bind(this),
       onDisconnect: () => {
@@ -74,6 +81,18 @@ class MySocket {
 
   get socketId(): string | null {
     return this.#socket && this.#socket.id ? this.#socket.id : null;
+  }
+
+  configure(uri?: string, options?: Partial<ManagerOptions & SocketOptions>): void {
+    if (this.#hasInstance) {
+      throw new Error("Cannot configure socket after it has been initialized. Call configure() before prepare().");
+    }
+    if (uri) {
+      this.uri = uri;
+    }
+    if (options) {
+      this.#options = { ...this.#options, ...options };
+    }
   }
 
   disconnect() {

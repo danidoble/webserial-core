@@ -7,12 +7,13 @@ interface SocketResponseData {
 }
 declare class MySocket {
     #private;
-    constructor();
+    constructor(uri?: string, options?: Partial<ManagerOptions & SocketOptions>);
     set uri(uri: string);
     get uri(): string;
     set options(options: Partial<ManagerOptions & SocketOptions>);
     get options(): Partial<ManagerOptions & SocketOptions>;
     get socketId(): string | null;
+    configure(uri?: string, options?: Partial<ManagerOptions & SocketOptions>): void;
     disconnect(): void;
     prepare(): void;
     connectDevice(config: object): void;
