@@ -37,6 +37,7 @@ type PortInfo = {
     parser: ParserSocketPort;
 };
 type SerialData = {
+    transformStream: false | TransformStream;
     socket: boolean;
     portInfo: PortInfo;
     aux_connecting: string;
@@ -92,6 +93,7 @@ interface CoreConstructorParams {
     device_listen_on_channel?: number | string;
     bypassSerialBytesConnection?: boolean;
     socket?: boolean;
+    transformStream?: false | TransformStream;
 }
 interface CustomCode {
     code: string | Uint8Array | Array<string> | Array<number>;
@@ -166,7 +168,7 @@ interface ICore {
 export declare class Core extends Dispatcher implements ICore {
     #private;
     protected __internal__: Internal;
-    constructor({ filters, config_port, no_device, device_listen_on_channel, bypassSerialBytesConnection, socket, }?: CoreConstructorParams);
+    constructor({ filters, config_port, no_device, device_listen_on_channel, bypassSerialBytesConnection, socket, transformStream, }?: CoreConstructorParams);
     set listenOnChannel(channel: string | number);
     get lastAction(): string | null;
     get listenOnChannel(): number;

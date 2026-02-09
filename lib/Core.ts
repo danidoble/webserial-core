@@ -48,6 +48,7 @@ type PortInfo = {
 };
 
 type SerialData = {
+  transformStream: false | TransformStream;
   socket: boolean;
   portInfo: PortInfo;
   aux_connecting: string;
@@ -108,6 +109,7 @@ interface CoreConstructorParams {
   device_listen_on_channel?: number | string;
   bypassSerialBytesConnection?: boolean;
   socket?: boolean;
+  transformStream?: false | TransformStream;
 }
 
 const defaultConfigPort: SerialOptions = {
@@ -268,6 +270,7 @@ export class Core extends Dispatcher implements ICore {
       no_code: 0,
     },
     serial: {
+      transformStream: false,
       socket: false,
       portInfo: {
         path: null,
@@ -338,6 +341,7 @@ export class Core extends Dispatcher implements ICore {
       device_listen_on_channel = 1,
       bypassSerialBytesConnection = false,
       socket = false,
+      transformStream = false,
     }: CoreConstructorParams = {
       filters: null,
       config_port: defaultConfigPort,
@@ -345,6 +349,7 @@ export class Core extends Dispatcher implements ICore {
       device_listen_on_channel: 1,
       bypassSerialBytesConnection: false,
       socket: false,
+      transformStream: false,
     },
   ) {
     super();
@@ -374,6 +379,7 @@ export class Core extends Dispatcher implements ICore {
     }
 
     this.__internal__.serial.socket = socket;
+    this.__internal__.serial.transformStream = transformStream;
 
     this.#registerDefaultListeners();
     this.#internalEvents();
@@ -1081,6 +1087,18 @@ export class Core extends Dispatcher implements ICore {
     }
   }
 
+  async #transformStreamLoop(): Promise<void> {
+    if (this.__internal__.serial.time_until_send_bytes) {
+      clearTimeout(this.__internal__.serial.time_until_send_bytes);
+      this.__internal__.serial.time_until_send_bytes = 0;
+    }
+
+    if (this.__internal__.serial.response.buffer) {
+      this.#serialGetResponse(this.__internal__.serial.response.buffer);
+    }
+    this.__internal__.serial.response.buffer = new Uint8Array(0);
+  }
+
   async #freeSerialLoop(): Promise<void> {
     if (this.__internal__.serial.time_until_send_bytes) {
       clearTimeout(this.__internal__.serial.time_until_send_bytes);
@@ -1217,7 +1235,12 @@ export class Core extends Dispatcher implements ICore {
     const port: SerialPort | null = this.__internal__.serial.port;
     if (!port || !port.readable) throw new Error("Port is not readable");
 
-    const reader: ReadableStreamDefaultReader<Uint8Array> = port.readable.getReader();
+    const parser = this.__internal__.serial.transformStream ? this.__internal__.serial.transformStream : null;
+    const reader: ReadableStreamDefaultReader<Uint8Array> = parser
+      ? port.readable.pipeThrough(parser).getReader()
+      : port.readable.getReader();
+    //const reader: ReadableStreamDefaultReader<Uint8Array> = port.readable.getReader();
+
     this.__internal__.serial.reader = reader;
 
     try {
@@ -1227,7 +1250,9 @@ export class Core extends Dispatcher implements ICore {
 
         this.#appendBuffer(value);
 
-        if (this.__internal__.serial.response.delimited) {
+        if (this.__internal__.serial.transformStream) {
+          await this.#transformStreamLoop();
+        } else if (this.__internal__.serial.response.delimited) {
           await this.#delimitedSerialLoop();
         } else if (this.__internal__.serial.response.length === null) {
           await this.#freeSerialLoop();
