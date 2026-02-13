@@ -820,20 +820,28 @@ export class Core extends Dispatcher implements ICore {
           Socket.disconnectDevice(this.configDeviceSocket);
         }
       } else {
+        this.__internal__.serial.keep_reading = false;
+
         const reader: ReadableStreamDefaultReader<Uint8Array> | null = this.__internal__.serial.reader;
         const output_stream: WritableStream<Uint8Array> | null = this.__internal__.serial.output_stream;
         if (reader) {
           const reader_promise: Promise<void> = reader.cancel();
           await reader_promise.catch((err: unknown): void => this.serialErrors(err));
-          await this.__internal__.serial.input_done;
+          if (this.__internal__.serial.input_done) {
+            await this.__internal__.serial.input_done;
+          }
         }
 
         if (output_stream) {
-          await output_stream.getWriter().close();
-          await this.__internal__.serial.output_done;
+          const writer = output_stream.getWriter();
+          await writer.close();
+          writer.releaseLock();
+          if (this.__internal__.serial.output_done) {
+            await this.__internal__.serial.output_done;
+          }
         }
 
-        if (this.__internal__.serial.connected && this.__internal__.serial && this.__internal__.serial.port) {
+        if (this.__internal__.serial && this.__internal__.serial.connected && this.__internal__.serial.port) {
           await this.__internal__.serial.port.close();
         }
       }
@@ -1264,11 +1272,12 @@ export class Core extends Dispatcher implements ICore {
       this.serialErrors(err);
     } finally {
       reader.releaseLock();
+      this.__internal__.serial.reader = null;
       this.__internal__.serial.keep_reading = true;
 
-      if (this.__internal__.serial.port) {
-        await this.__internal__.serial.port.close();
-      }
+      // if (this.__internal__.serial.port) {
+      //   await this.__internal__.serial.port.close();
+      // }
     }
   }
 

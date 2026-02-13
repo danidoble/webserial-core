@@ -658,8 +658,13 @@ class T extends y {
       if (this.useSocket)
         c.isConnected() && c.disconnectDevice(this.configDeviceSocket);
       else {
+        this.__internal__.serial.keep_reading = !1;
         const e = this.__internal__.serial.reader, t = this.__internal__.serial.output_stream;
-        e && (await e.cancel().catch((i) => this.serialErrors(i)), await this.__internal__.serial.input_done), t && (await t.getWriter().close(), await this.__internal__.serial.output_done), this.__internal__.serial.connected && this.__internal__.serial && this.__internal__.serial.port && await this.__internal__.serial.port.close();
+        if (e && (await e.cancel().catch((i) => this.serialErrors(i)), this.__internal__.serial.input_done && await this.__internal__.serial.input_done), t) {
+          const n = t.getWriter();
+          await n.close(), n.releaseLock(), this.__internal__.serial.output_done && await this.__internal__.serial.output_done;
+        }
+        this.__internal__.serial && this.__internal__.serial.connected && this.__internal__.serial.port && await this.__internal__.serial.port.close();
       }
     } catch (e) {
       this.serialErrors(e);
@@ -897,7 +902,7 @@ class T extends y {
     } catch (i) {
       this.serialErrors(i);
     } finally {
-      n.releaseLock(), this.__internal__.serial.keep_reading = !0, this.__internal__.serial.port && await this.__internal__.serial.port.close();
+      n.releaseLock(), this.__internal__.serial.reader = null, this.__internal__.serial.keep_reading = !0;
     }
   }
   #o(e) {
