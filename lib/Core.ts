@@ -825,8 +825,7 @@ export class Core extends Dispatcher implements ICore {
         const reader: ReadableStreamDefaultReader<Uint8Array> | null = this.__internal__.serial.reader;
         const output_stream: WritableStream<Uint8Array> | null = this.__internal__.serial.output_stream;
         if (reader) {
-          const reader_promise: Promise<void> = reader.cancel();
-          await reader_promise.catch((err: unknown): void => this.serialErrors(err));
+          await reader.cancel().catch((err: unknown): void => this.serialErrors(err));
           if (this.__internal__.serial.input_done) {
             await this.__internal__.serial.input_done;
           }
