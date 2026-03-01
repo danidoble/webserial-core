@@ -4,7 +4,7 @@ class g extends CustomEvent {
     super(e, t);
   }
 }
-class y extends EventTarget {
+class m extends EventTarget {
   __listeners__ = {
     debug: !1
   };
@@ -105,7 +105,7 @@ class y extends EventTarget {
       this.__listeners__[e] = !1;
   }
 }
-class s extends y {
+class s extends m {
   static instance;
   static devices = {};
   constructor() {
@@ -207,7 +207,7 @@ class s extends y {
   }
 }
 s.instance || (s.instance = new s());
-function m(a = 100) {
+function y(a = 100) {
   return new Promise(
     (e) => setTimeout(() => e(), a)
   );
@@ -305,7 +305,7 @@ const c = new C(), f = {
   bufferSize: 32768,
   flowControl: "none"
 };
-class T extends y {
+class T extends m {
   __internal__ = {
     bypassSerialBytesConnection: !1,
     auto_response: !1,
@@ -400,7 +400,7 @@ class T extends y {
   }) {
     if (super(), !("serial" in navigator))
       throw new Error("Web Serial not supported");
-    e && (this.serialFilters = e), t && (this.serialConfigPort = t), o && (this.__internal__.bypassSerialBytesConnection = o), n && this.#C(n), i && ["number", "string"].includes(typeof i) && (this.listenOnChannel = i), this.__internal__.serial.socket = r, this.__internal__.serial.transformStream = h, this.#m(), this.#y();
+    e && (this.serialFilters = e), t && (this.serialConfigPort = t), o && (this.__internal__.bypassSerialBytesConnection = o), n && this.#C(n), i && ["number", "string"].includes(typeof i) && (this.listenOnChannel = i), this.__internal__.serial.socket = r, this.__internal__.serial.transformStream = h, this.#y(), this.#m();
   }
   set listenOnChannel(e) {
     if (typeof e == "string" && (e = parseInt(e)), isNaN(e) || e < 1 || e > 255)
@@ -660,7 +660,7 @@ class T extends y {
       else {
         this.__internal__.serial.keep_reading = !1;
         const e = this.__internal__.serial.reader, t = this.__internal__.serial.output_stream;
-        if (e && (await e.cancel().catch((i) => this.serialErrors(i)), this.__internal__.serial.input_done && await this.__internal__.serial.input_done), t) {
+        if (e && (await e.cancel().catch((n) => this.serialErrors(n)), this.__internal__.serial.input_done && await this.__internal__.serial.input_done), t) {
           const n = t.getWriter();
           await n.close(), n.releaseLock(), this.__internal__.serial.output_done && await this.__internal__.serial.output_done;
         }
@@ -700,7 +700,7 @@ class T extends y {
         throw new Error("Timeout waiting for clearToSend signal");
       const { clearToSend: i } = await e.getSignals();
       if (i) return;
-      await m(100);
+      await y(100);
     }
   }
   #r(e = new Uint8Array([]), t = !1) {
@@ -938,7 +938,7 @@ class T extends y {
           n.dispatch("serial:connected", i), n.#o(!1), s.$dispatchChange(this), n.__internal__.serial.queue.length > 0 ? n.dispatch("internal:queue", {}) : n.__internal__.serial.running_queue = !1;
         }, t.ondisconnect = async () => {
           await n.disconnect();
-        }, await m(this.__internal__.serial.delay_first_connection), this.__internal__.timeout.until_response = setTimeout(async () => {
+        }, await y(this.__internal__.serial.delay_first_connection), this.__internal__.timeout.until_response = setTimeout(async () => {
           await n.timeout(n.__internal__.serial.bytes_connection ?? [], "connection:start");
         }, this.__internal__.time.response_connection), this.__internal__.serial.last_action = "connect", await this.#n(this.__internal__.serial.bytes_connection ?? []), this.dispatch("serial:sent", {
           action: "connect",
@@ -973,7 +973,7 @@ class T extends y {
   bytesToHex(e) {
     return this.add0x(Array.from(e, (t) => this.hexMaker(t)));
   }
-  #m() {
+  #y() {
     [
       "serial:connected",
       "serial:connecting",
@@ -994,7 +994,7 @@ class T extends y {
       this.serialRegisterAvailableListener(t);
     });
   }
-  #y() {
+  #m() {
     const e = this;
     this.on("internal:queue", async () => {
       await e.#b();
@@ -1233,7 +1233,7 @@ class w extends Error {
 export {
   T as Core,
   s as Devices,
-  y as Dispatcher,
+  m as Dispatcher,
   w as SerialError,
   E as SerialErrorCode,
   c as Socket
