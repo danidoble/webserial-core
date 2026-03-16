@@ -46,7 +46,7 @@ jobs:
       - name: Build VitePress docs
         run: bun vitepress build docs
         env:
-          DOCS_BASE: /webserial-core/
+          DOCS_BASE: ${{ secrets.DOCS_BASE }}
           # Optional: enable Algolia search by adding these secrets in the repo settings
           ALGOLIA_APP_ID: ${{ secrets.ALGOLIA_APP_ID }}
           ALGOLIA_API_KEY: ${{ secrets.ALGOLIA_API_KEY }}
