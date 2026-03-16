@@ -16,12 +16,12 @@ Start the Vite dev server to test the demos interactively:
 npm run dev
 ```
 
-Then open any of the demo pages:
+Then open any of the demo pages in your browser:
 
-- [http://localhost:5173/demos/web-serial/](http://localhost:5173/demos/web-serial/)
-- [http://localhost:5173/demos/web-usb/](http://localhost:5173/demos/web-usb/)
-- [http://localhost:5173/demos/web-bluetooth/](http://localhost:5173/demos/web-bluetooth/)
-- [http://localhost:5173/demos/websocket/](http://localhost:5173/demos/websocket/)
+- `http://localhost:5173/` — Web Serial (native)
+- `http://localhost:5173/demos/web-usb/` — WebUSB Polyfill
+- `http://localhost:5173/demos/web-bluetooth/` — Web Bluetooth
+- `http://localhost:5173/demos/websocket/` — WebSocket Bridge
 
 ## Code style
 

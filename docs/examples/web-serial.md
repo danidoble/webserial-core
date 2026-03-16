@@ -92,7 +92,9 @@ await device.connect();
 
 ## Live demo
 
-Run the demo locally:
+👉 **[Open interactive demo](/demos/web-serial.html)** — runs directly in your browser
+
+Or run locally:
 
 ```bash
 npm run dev

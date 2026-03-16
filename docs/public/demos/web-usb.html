@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebUSB — webserial-core demo</title>
+    <link rel="stylesheet" href="/demo-style.css" />
+    <style>
+      :root {
+        --accent: #3b82f6;
+        --accent-dark: #2563eb;
+        --accent-badge: #0c1a3f;
+        --log-event: #818cf8;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <h1>🔌 WebUSB</h1>
+        <span class="badge">WebUSB Polyfill</span>
+        <span>webserial-core v2</span>
+      </header>
+
+      <p class="info-text">
+        Uses <code>WebUsbProvider</code> to polyfill the Web Serial API over raw WebUSB.
+        Requires a USB device with a bulk-transfer interface (e.g. CDC-ACM on Android/firmware).
+      </p>
+
+      <div class="controls">
+        <button id="btn-connect">Connect</button>
+        <button id="btn-disconnect" disabled>Disconnect</button>
+      </div>
+
+      <div class="send-row">
+        <button id="mode-toggle">TXT</button>
+        <input
+          id="input-send"
+          type="text"
+          placeholder="Type a command, e.g. LED_ON"
+          disabled
+        />
+        <button id="btn-send" disabled>Send</button>
+      </div>
+
+      <div id="log"></div>
+
+      <a class="nav-link" href="/demos/web-serial.html">→ Web Serial (native)</a>
+      <a class="nav-link" href="/demos/web-bluetooth.html">→ Web Bluetooth (BLE UART)</a>
+    </div>
+
+    <!-- UMD bundle: exposes window.WebSerialCore -->
+    <script src="/dist/webserial-core.umd.js"></script>
+    <script>
+      const { AbstractSerialDevice, WebUsbProvider, delimiter } = window.WebSerialCore;
+
+      // ─── Set WebUSB provider globally ────────────────────────────
+      AbstractSerialDevice.setProvider(
+        new WebUsbProvider({
+          // Set to 255/255 for generic CDC or adjust to match your device's
+          // interface class / subclass values.
+          usbControlInterfaceClass: 255,
+          usbTransferInterfaceClass: 255,
+        }),
+      );
+
+      // ─── Device class ─────────────────────────────────────────────
+      class DemoUsbDevice extends AbstractSerialDevice {
+        constructor() {
+          super({
+            baudRate: 9600,
+            dataBits: 8,
+            stopBits: 1,
+            parity: "none",
+            flowControl: "none",
+            bufferSize: 255,
+            commandTimeout: 3000,
+            parser: delimiter("\n"),
+            autoReconnect: false,
+          });
+        }
+
+        async handshake() {
+          return true;
+        }
+      }
+
+      // ─── UI references ────────────────────────────────────────────
+      const logEl      = document.getElementById("log");
+      const connectBtn = document.getElementById("btn-connect");
+      const disconnBtn = document.getElementById("btn-disconnect");
+      const sendBtn    = document.getElementById("btn-send");
+      const sendInput  = document.getElementById("input-send");
+      const modeToggle = document.getElementById("mode-toggle");
+
+      let sendMode = "text";
+
+      // ─── Helpers ─────────────────────────────────────────────────
+      function log(msg, type = "info") {
+        const line = document.createElement("div");
+        line.className = `log-line log-${type}`;
+        line.textContent = `[${new Date().toLocaleTimeString()}] [${type.toUpperCase()}] ${msg}`;
+        logEl.appendChild(line);
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      function formatBytes(data) {
+        return Array.from(data)
+          .map((b) => b.toString(16).toUpperCase().padStart(2, "0"))
+          .join(" ");
+      }
+
+      function hexToBytes(hex) {
+        const h = hex.replace(/\s+/g, "");
+        if (h.length % 2 !== 0) throw new Error("Hex string must have even length.");
+        const bytes = new Uint8Array(h.length / 2);
+        for (let i = 0; i < h.length; i += 2) bytes[i / 2] = parseInt(h.slice(i, i + 2), 16);
+        return bytes;
+      }
+
+      // ─── Device instance ──────────────────────────────────────────
+      const device = new DemoUsbDevice();
+
+      device.on("serial:connecting",      () => { log("Connecting via WebUSB...", "event"); connectBtn.disabled = true; });
+      device.on("serial:connected",       () => { log("Connected!", "event"); connectBtn.disabled = true; disconnBtn.disabled = false; sendBtn.disabled = false; sendInput.disabled = false; });
+      device.on("serial:disconnected",    () => { log("Disconnected.", "event"); connectBtn.disabled = false; disconnBtn.disabled = true; sendBtn.disabled = true; sendInput.disabled = true; });
+      device.on("serial:data",            (d) => log(`← ${d}`, "data"));
+      device.on("serial:sent",            (d) => log(`→ [SENT] ${formatBytes(d)}`, "info"));
+      device.on("serial:error",           (e) => { log(`Error: ${e.message}`, "error"); connectBtn.disabled = false; });
+      device.on("serial:need-permission", () => { log("Permission denied — click Connect and select a device.", "error"); connectBtn.disabled = false; });
+
+      // ─── Controls ─────────────────────────────────────────────────
+      connectBtn.addEventListener("click", () => device.connect());
+      disconnBtn.addEventListener("click", () => device.disconnect());
+
+      modeToggle.addEventListener("click", () => {
+        sendMode = sendMode === "text" ? "hex" : "text";
+        modeToggle.textContent = sendMode === "text" ? "TXT" : "HEX";
+        sendInput.placeholder = sendMode === "text"
+          ? "Type a command, e.g. LED_ON"
+          : "Type hex, e.g. 41 42 0A";
+      });
+
+      async function sendData() {
+        const raw = sendInput.value.trim();
+        if (!raw) return;
+        try {
+          if (sendMode === "hex") {
+            await device.send(hexToBytes(raw));
+          } else {
+            await device.send(new TextEncoder().encode(raw));
+          }
+          sendInput.value = "";
+        } catch (err) {
+          log(`Send error: ${err.message}`, "error");
+        }
+      }
+
+      sendBtn.addEventListener("click", sendData);
+      sendInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendData(); });
+
+      if (!navigator.usb) {
+        log("⚠ WebUSB is not supported in this browser. Use Chrome or Edge desktop.", "error");
+        connectBtn.disabled = true;
+      } else {
+        log("WebUSB demo ready. Click Connect and select your device.", "info");
+      }
+    </script>
+  </body>
+</html>

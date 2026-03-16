@@ -10,9 +10,12 @@
   "module": "./dist/webserial-core.mjs",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@iconify/vue": "^5.0.0",
     "@types/bun": "^1.3.10",
+    "@types/w3c-web-serial": "^1.0.8",
     "@types/w3c-web-usb": "^1.0.13",
     "@types/web-bluetooth": "^0.0.21",
+    "algoliasearch": "^5.49.2",
     "eslint": "^10.0.3",
     "globals": "^17.4.0",
     "jiti": "^2.6.1",
@@ -61,11 +64,16 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "lint": "eslint . --fix",
-    "format": "prettier . --write",
+    "format": "prettier ./demos ./docs ./scripts ./src ./tests --write",
+    "docs:prepare": "vite build && node scripts/prepare-docs.mjs",
     "docs:dev": "vitepress dev docs",
-    "docs:build": "vitepress build docs",
-    "release": "node scripts/publish.mjs"
+    "docs:build": "vite build && node scripts/prepare-docs.mjs && vitepress build docs",
+    "docs:preview": "vitepress preview docs",
+    "docs:index": "node scripts/algolia-index.mjs",
+    "release": "node scripts/publish.mjs",
+    "release:simulate": "node scripts/publish.mjs --dry-run"
   },
+  "sideEffects": false,
   "type": "module",
   "types": "./dist/index.d.ts"
 }

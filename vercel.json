@@ -1,0 +1,9 @@
+{
+  "buildCommand": "bun run docs:build",
+  "outputDirectory": "docs/.vitepress/dist",
+  "framework": null,
+  "installCommand": "bun install",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/404.html" }
+  ]
+}

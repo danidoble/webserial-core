@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#06b6d4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Code angle brackets (parser / transform) -->
+  <polyline points="15,18 21,12 15,6"/>
+  <polyline points="9,6 3,12 9,18"/>
+  <!-- Dashes in the middle = data stream -->
+  <line x1="13" y1="12" x2="11" y2="12" stroke="#06b6d4" stroke-dasharray="1.5 1.5"/>
+</svg>

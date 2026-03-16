@@ -85,6 +85,10 @@ await device.send("LED_ON\n");
 
 ## Live demo
 
+👉 **[Open interactive demo](/demos/web-usb.html)** — runs directly in your browser
+
+Or run locally:
+
 ```bash
 npm run dev
 # Then open http://localhost:5173/demos/web-usb/

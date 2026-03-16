@@ -1,5 +1,14 @@
 # webserial-core
 
+[![npm version](https://badge.fury.io/js/webserial-core.svg)](https://www.npmjs.com/package/webserial-core)
+[![npm downloads](https://img.shields.io/npm/dm/webserial-core)](https://www.npmjs.com/package/webserial-core)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![TypeScript](https://img.shields.io/badge/TypeScript-ready-blue)
+![bundle size](https://img.shields.io/bundlephobia/minzip/webserial-core)
+![GitHub release](https://img.shields.io/github/v/release/danidoble/webserial-core)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/danidoble/webserial-core)
+
+
 A strongly-typed, event-driven, abstract TypeScript library for serial
 communication on the web. Supports **Web Serial**, **WebUSB**, **Web
 Bluetooth**, and **WebSocket** transports through a unified API.
@@ -8,8 +17,8 @@ Bluetooth**, and **WebSocket** transports through a unified API.
 
 > **⚠️ Breaking Changes — v2**
 >
-> Version 2 is a complete rewrite. Tthe public API is completally changed, 
-> please if you has an implementation of this library is better read docs as like a 
+> Version 2 is a complete rewrite. Tthe public API is completally changed,
+> please if you has an implementation of this library is better read docs as like a
 > new integration See the [Migration Guide](docs/guide/migration-v1-v2.md) before upgrading.
 
 ---

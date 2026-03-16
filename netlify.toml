@@ -1,0 +1,15 @@
+# Build settings for Netlify
+[build]
+  command   = "bun run docs:build"
+  publish   = "docs/.vitepress/dist"
+
+# Environment variables — bun run docs:build runs under /webserial-core/ on GitHub Pages
+# but on Netlify the site is served from root, so DOCS_BASE defaults to "/".
+[build.environment]
+  NODE_VERSION = "20"
+
+# Redirect all paths to the VitePress 404 page when a route is not found
+[[redirects]]
+  from   = "/*"
+  to     = "/404.html"
+  status = 404

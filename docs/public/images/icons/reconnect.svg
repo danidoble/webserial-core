@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#22c55e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Circular arrows (reconnect/refresh) -->
+  <path d="M4.5 12a7.5 7.5 0 0 1 13.3-4.8"/>
+  <polyline points="22,5 18,7 16,3"/>
+  <path d="M19.5 12a7.5 7.5 0 0 1-13.3 4.8"/>
+  <polyline points="2,19 6,17 8,21"/>
+</svg>

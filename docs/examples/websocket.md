@@ -101,6 +101,8 @@ createWebSocketProvider("ws://my-raspberry-pi.local:8080");
 
 ## Live demo
 
+The WebSocket demo requires a local bridge server — run it locally:
+
 ```bash
 # Terminal 1: bridge server
 cd demos/websocket && npm install && node server.js

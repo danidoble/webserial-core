@@ -2,251 +2,41 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WebSerial — WebSocket Polyfill Test</title>
+    <title>WebSocket Bridge — webserial-core demo</title>
+    <link rel="stylesheet" href="./demos/style.css" />
     <style>
-      *,
-      *::before,
-      *::after {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
-
-      body {
-        font-family:
-          "Segoe UI",
-          system-ui,
-          -apple-system,
-          sans-serif;
-        background: #0f0f12;
-        color: #e4e4e7;
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      #app {
-        width: min(640px, 94vw);
-        background: #18181b;
-        border: 1px solid #27272a;
-        border-radius: 16px;
-        overflow: hidden;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
-      }
-
-      header {
-        padding: 20px 24px;
-        border-bottom: 1px solid #27272a;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-      }
-
-      header h1 {
-        font-size: 1.15rem;
-        font-weight: 600;
-        color: #3b82f6; /* Blue theme for WebSocket */
-      }
-
-      header span {
-        font-size: 0.8rem;
-        color: #71717a;
-      }
-
-      .badge {
-        background: #3b82f6;
-        color: #09090b;
-        font-size: 0.65rem;
-        font-weight: 700;
-        padding: 2px 8px;
-        border-radius: 999px;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-
-      .controls {
-        display: flex;
-        gap: 8px;
-        padding: 16px 24px;
-        border-bottom: 1px solid #27272a;
-        flex-wrap: wrap;
-      }
-
-      button {
-        padding: 8px 18px;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 0.85rem;
-        font-weight: 500;
-        transition:
-          background 0.2s,
-          opacity 0.2s;
-      }
-
-      button:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-      }
-
-      #btn-connect {
-        background: #3b82f6;
-        color: #fff;
-      }
-
-      #btn-connect:hover:not(:disabled) {
-        background: #2563eb;
-      }
-
-      #btn-disconnect {
-        background: #ef4444;
-        color: #fff;
-      }
-
-      #btn-disconnect:hover:not(:disabled) {
-        background: #dc2626;
-      }
-
-      .send-row {
-        display: flex;
-        gap: 8px;
-        padding: 0 24px 16px;
-      }
-
-      .send-row input {
-        flex: 1;
-        padding: 8px 12px;
-        border-radius: 8px;
-        border: 1px solid #3f3f46;
-        background: #09090b;
-        color: #e4e4e7;
-        font-size: 0.85rem;
-        outline: none;
-        transition: border-color 0.2s;
-      }
-
-      .send-row input:focus {
-        border-color: #3b82f6;
-      }
-
-      .send-row input:disabled {
-        opacity: 0.4;
-      }
-
-      #btn-send {
-        background: #6366f1;
-        color: #fff;
-      }
-
-      #btn-send:hover:not(:disabled) {
-        background: #4f46e5;
-      }
-
-      #mode-toggle {
-        background: #3b82f6;
-        color: #fff;
-        font-weight: 700;
-        min-width: 54px;
-      }
-
-      #mode-toggle:hover {
-        background: #2563eb;
-      }
-
-      #log {
-        height: 340px;
-        overflow-y: auto;
-        padding: 16px 24px;
-        font-family: "Fira Code", "Cascadia Code", monospace;
-        font-size: 0.8rem;
-        line-height: 1.7;
-        background: #09090b;
-      }
-
-      .log-line {
-        white-space: pre-wrap;
-        word-break: break-all;
-      }
-
-      .log-info {
-        color: #a1a1aa;
-      }
-
-      .log-event {
-        color: #60a5fa; /* lighter blue for events */
-      }
-
-      .log-data {
-        color: #4ade80;
-      }
-
-      .log-error {
-        color: #f87171;
-      }
-
-      #log::-webkit-scrollbar {
-        width: 6px;
-      }
-
-      #log::-webkit-scrollbar-track {
-        background: transparent;
-      }
-
-      #log::-webkit-scrollbar-thumb {
-        background: #3f3f46;
-        border-radius: 3px;
-      }
-
-      .nav-link {
-        display: block;
-        text-align: center;
-        padding: 12px;
-        color: #71717a;
-        font-size: 0.78rem;
-        text-decoration: none;
-        border-top: 1px solid #27272a;
-      }
-
-      .nav-link:hover {
-        color: #a78bfa;
-      }
-
-      .notice {
-        margin: 0 24px 16px;
-        padding: 14px 16px;
-        background: #1c1917;
-        border: 1px solid #44403c;
-        border-left: 3px solid #3b82f6;
-        border-radius: 8px;
-        font-size: 0.78rem;
-        line-height: 1.6;
-        color: #d6d3d1;
+      :root {
+        --accent: #f97316;
+        --accent-dark: #ea580c;
+        --accent-badge: #fff7ed;
+        --log-event: #fb923c;
+        --notice-bg: #1c1208;
+        --notice-border: #43270c;
+        --notice-text: #fed7aa;
+        --notice-code-bg: #2c1a08;
       }
     </style>
   </head>
   <body>
     <div id="app">
       <header>
-        <h1>🔌 WebSocket Polyfill Test</h1>
-        <span class="badge">POLYFILL (WS)</span>
-        <span>WebSerial Core v2</span>
+        <h1>🌐 WebSocket Bridge</h1>
+        <span class="badge">Node.js</span>
+        <span>webserial-core v2</span>
       </header>
 
       <div class="controls">
-        <button id="btn-connect">Connect via Node.js Server</button>
+        <button id="btn-connect">Connect</button>
         <button id="btn-disconnect" disabled>Disconnect</button>
       </div>
 
       <div class="notice">
-        This page uses a custom <strong>WebSocket Provider</strong>. It connects
-        to <code>ws://localhost:8080</code> instead of using the browser's
-        native USB API.<br /><br />
-        For this test to work, you need to run a Node.js server that uses
-        <code>serialport</code> and acts as a bridge. Please refer to the README
-        for the Node Server code snippet.
+        Requires the <strong>Node.js bridge server</strong> running locally:<br />
+        <code>cd demos/websocket &amp;&amp; node server.js</code><br /><br />
+        The bridge relays serial I/O over WebSocket JSON messages so the browser
+        can talk to any serial port on the server machine — including behind
+        firewalls or on embedded Linux devices.
       </div>
 
       <div class="send-row">
@@ -262,15 +52,11 @@
 
       <div id="log"></div>
 
-      <a class="nav-link" href="/">← Back to Native Serial test</a>
-      <a
-        class="nav-link"
-        style="border-top: none; padding-top: 0"
-        href="/ble.html"
-        >→ Go to Web Bluetooth Test</a
-      >
+      <a class="nav-link" href="/demos/web-serial/">← Web Serial (native)</a>
+      <a class="nav-link" href="/demos/web-usb/">← WebUSB Polyfill</a>
+      <a class="nav-link" href="/demos/web-bluetooth/">← Web Bluetooth (BLE UART)</a>
     </div>
 
-    <script type="module" src="/tests/ArduinoDeviceWS.ts"></script>
+    <script type="module" src="./demos/websocket/main.ts"></script>
   </body>
 </html>

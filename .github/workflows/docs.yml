@@ -1,0 +1,80 @@
+name: Deploy Docs to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+      - v2.x.x
+  workflow_dispatch:
+
+# Required permissions for GitHub Pages deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment; cancel in-progress runs for same branch
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history needed for VitePress lastUpdated
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # Build the library first so the UMD bundle can be copied to docs/public/
+      - name: Build library
+        run: bun run build
+
+      # Copy UMD bundle + demo styles into docs/public/
+      - name: Prepare docs assets
+        run: node scripts/prepare-docs.mjs
+
+      # Build the VitePress site with the correct base path for GitHub Pages.
+      # The repo is at https://danidoble.github.io/webserial-core/
+      - name: Build VitePress docs
+        run: bun vitepress build docs
+        env:
+          DOCS_BASE: /webserial-core/
+          # Optional: enable Algolia search by adding these secrets in the repo settings
+          ALGOLIA_APP_ID: ${{ secrets.ALGOLIA_APP_ID }}
+          ALGOLIA_API_KEY: ${{ secrets.ALGOLIA_API_KEY }}
+          ALGOLIA_INDEX_NAME: ${{ secrets.ALGOLIA_INDEX_NAME }}
+
+      # Reindex Algolia after a successful build.
+      # Only runs when ALGOLIA_WRITE_API_KEY is configured as a repo secret.
+      - name: Reindex Algolia docs
+        if: ${{ secrets.ALGOLIA_WRITE_API_KEY != '' }}
+        run: node scripts/algolia-index.mjs
+        env:
+          ALGOLIA_APP_ID: ${{ secrets.ALGOLIA_APP_ID }}
+          ALGOLIA_WRITE_API_KEY: ${{ secrets.ALGOLIA_WRITE_API_KEY }}
+          ALGOLIA_INDEX_NAME: ${{ secrets.ALGOLIA_INDEX_NAME }}
+          DOCS_BASE: /webserial-core/
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/.vitepress/dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment

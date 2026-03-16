@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 420" width="800" height="420" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="800" y2="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0f0f12"/>
+      <stop offset="100%" stop-color="#1a1527"/>
+    </linearGradient>
+    <linearGradient id="wire" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="50%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#22c55e"/>
+    </linearGradient>
+    <linearGradient id="wirereverse" x1="1" y1="0" x2="0" y2="0">
+      <stop offset="0%" stop-color="#22c55e"/>
+      <stop offset="50%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="420" fill="url(#bg)" rx="16"/>
+
+  <!-- Subtle grid dots -->
+  <g opacity="0.07" fill="#a78bfa">
+    <circle cx="80" cy="60" r="1.5"/><circle cx="160" cy="60" r="1.5"/><circle cx="240" cy="60" r="1.5"/>
+    <circle cx="80" cy="130" r="1.5"/><circle cx="160" cy="130" r="1.5"/><circle cx="240" cy="130" r="1.5"/>
+    <circle cx="80" cy="200" r="1.5"/><circle cx="160" cy="200" r="1.5"/><circle cx="240" cy="200" r="1.5"/>
+    <circle cx="560" cy="60" r="1.5"/><circle cx="640" cy="60" r="1.5"/><circle cx="720" cy="60" r="1.5"/>
+    <circle cx="560" cy="130" r="1.5"/><circle cx="640" cy="130" r="1.5"/><circle cx="720" cy="130" r="1.5"/>
+    <circle cx="560" cy="200" r="1.5"/><circle cx="640" cy="200" r="1.5"/><circle cx="720" cy="200" r="1.5"/>
+  </g>
+
+  <!-- ─────── BROWSER WINDOW (left) ─────── -->
+  <rect x="40" y="60" width="240" height="185" rx="10" fill="#18181b" stroke="#27272a" stroke-width="1.5"/>
+  <!-- Title bar -->
+  <rect x="40" y="60" width="240" height="30" rx="10" fill="#27272a"/>
+  <rect x="40" y="75" width="240" height="15" fill="#27272a"/>
+  <!-- Traffic lights -->
+  <circle cx="58"  cy="75" r="5" fill="#ef4444"/>
+  <circle cx="76"  cy="75" r="5" fill="#f59e0b"/>
+  <circle cx="94"  cy="75" r="5" fill="#22c55e"/>
+  <!-- Code lines (browser body) -->
+  <!-- import line -->
+  <rect x="56" y="106" width="80" height="7" rx="3" fill="#6366f1" opacity="0.7"/>
+  <rect x="142" y="106" width="40" height="7" rx="3" fill="#a78bfa" opacity="0.7"/>
+  <rect x="188" y="106" width="50" height="7" rx="3" fill="#e4e4e7" opacity="0.2"/>
+  <!-- class line -->
+  <rect x="56" y="122" width="42" height="7" rx="3" fill="#22c55e" opacity="0.7"/>
+  <rect x="104" y="122" width="68" height="7" rx="3" fill="#e4e4e7" opacity="0.3"/>
+  <rect x="178" y="122" width="38" height="7" rx="3" fill="#a78bfa" opacity="0.6"/>
+  <!-- method line -->
+  <rect x="72" y="138" width="95" height="7" rx="3" fill="#e4e4e7" opacity="0.2"/>
+  <rect x="174" y="138" width="48" height="7" rx="3" fill="#f59e0b" opacity="0.6"/>
+  <!-- body lines -->
+  <rect x="88"  y="154" width="70" height="6" rx="3" fill="#e4e4e7" opacity="0.12"/>
+  <rect x="88"  y="168" width="90" height="6" rx="3" fill="#e4e4e7" opacity="0.12"/>
+  <!-- bottom lines -->
+  <rect x="56"  y="184" width="45" height="6" rx="3" fill="#22c55e" opacity="0.5"/>
+  <rect x="56"  y="198" width="120" height="6" rx="3" fill="#e4e4e7" opacity="0.15"/>
+  <rect x="56"  y="212" width="75" height="6" rx="3" fill="#a78bfa" opacity="0.4"/>
+  <!-- TypeScript badge -->
+  <rect x="232" y="192" width="28" height="18" rx="4" fill="#3b82f6"/>
+  <text x="246" y="205" text-anchor="middle" font-size="9" font-weight="700" fill="white" font-family="monospace,sans-serif">TS</text>
+
+  <!-- ─────── CONNECTION WIRES (center) ─────── -->
+  <!-- Top wire TX (browser → device) -->
+  <line x1="280" y1="155" x2="520" y2="155" stroke="url(#wire)" stroke-width="2.5" stroke-dasharray="8 4"/>
+  <polygon points="516,151 524,155 516,159" fill="#22c55e"/>
+  <!-- Bottom wire RX (device → browser) -->
+  <line x1="520" y1="180" x2="280" y2="180" stroke="url(#wirereverse)" stroke-width="2.5" stroke-dasharray="8 4"/>
+  <polygon points="284,176 276,180 284,184" fill="#6366f1"/>
+
+  <!-- Protocol icons along the wire -->
+  <!-- USB icon -->
+  <g transform="translate(340,130)" opacity="0.9">
+    <rect width="36" height="22" rx="6" fill="#18181b" stroke="#3b82f6" stroke-width="1.2"/>
+    <text x="18" y="15" text-anchor="middle" font-size="8" font-weight="600" fill="#60a5fa" font-family="sans-serif">USB</text>
+  </g>
+  <!-- BLE icon -->
+  <g transform="translate(382,130)" opacity="0.9">
+    <rect width="36" height="22" rx="6" fill="#18181b" stroke="#a78bfa" stroke-width="1.2"/>
+    <text x="18" y="15" text-anchor="middle" font-size="8" font-weight="600" fill="#c084fc" font-family="sans-serif">BLE</text>
+  </g>
+  <!-- WS icon -->
+  <g transform="translate(424,130)" opacity="0.9">
+    <rect width="36" height="22" rx="6" fill="#18181b" stroke="#22c55e" stroke-width="1.2"/>
+    <text x="18" y="15" text-anchor="middle" font-size="8" font-weight="600" fill="#4ade80" font-family="sans-serif">WS</text>
+  </g>
+
+  <!-- ─────── ARDUINO / MCU (right) ─────── -->
+  <!-- Board outline -->
+  <rect x="520" y="60" width="240" height="185" rx="10" fill="#0f2010" stroke="#1a4020" stroke-width="1.5"/>
+  <!-- PCB green body -->
+  <rect x="530" y="70" width="220" height="165" rx="6" fill="#14291a"/>
+  <!-- Chips -->
+  <rect x="588" y="90"  width="64" height="50" rx="4" fill="#0f1f14" stroke="#22c55e" stroke-width="0.8"/>
+  <rect x="598" y="100" width="44" height="30" rx="2" fill="#030d05"/>
+  <text x="620" y="120" text-anchor="middle" font-size="7" fill="#22c55e" font-family="monospace,sans-serif" opacity="0.8">ATmega</text>
+  <!-- IC chip bottom -->
+  <rect x="588" y="155" width="64" height="35" rx="4" fill="#0f1f14" stroke="#22c55e" stroke-width="0.8"/>
+  <rect x="596" y="162" width="48" height="20" rx="2" fill="#030d05"/>
+  <text x="620" y="176" text-anchor="middle" font-size="7" fill="#22c55e" font-family="monospace,sans-serif" opacity="0.8">CP2102</text>
+  <!-- Pin headers (left side) -->
+  <g fill="#d4b483" opacity="0.7">
+    <rect x="534" y="90"  width="6" height="6" rx="1"/>
+    <rect x="534" y="101" width="6" height="6" rx="1"/>
+    <rect x="534" y="112" width="6" height="6" rx="1"/>
+    <rect x="534" y="123" width="6" height="6" rx="1"/>
+    <rect x="534" y="134" width="6" height="6" rx="1"/>
+    <rect x="534" y="145" width="6" height="6" rx="1"/>
+    <rect x="534" y="156" width="6" height="6" rx="1"/>
+    <rect x="534" y="167" width="6" height="6" rx="1"/>
+  </g>
+  <!-- Pin headers (right side) -->
+  <g fill="#d4b483" opacity="0.7">
+    <rect x="740" y="90"  width="6" height="6" rx="1"/>
+    <rect x="740" y="101" width="6" height="6" rx="1"/>
+    <rect x="740" y="112" width="6" height="6" rx="1"/>
+    <rect x="740" y="123" width="6" height="6" rx="1"/>
+    <rect x="740" y="134" width="6" height="6" rx="1"/>
+    <rect x="740" y="145" width="6" height="6" rx="1"/>
+    <rect x="740" y="156" width="6" height="6" rx="1"/>
+    <rect x="740" y="167" width="6" height="6" rx="1"/>
+  </g>
+  <!-- USB-B connector on right board -->
+  <rect x="696" y="80" width="22" height="16" rx="2" fill="#1c1c1c" stroke="#3f3f46" stroke-width="1"/>
+  <!-- LED indicators -->
+  <circle cx="548" cy="200" r="3.5" fill="#22c55e" opacity="0.9"/>
+  <circle cx="562" cy="200" r="3.5" fill="#ef4444" opacity="0.8"/>
+  <circle cx="576" cy="200" r="3.5" fill="#f59e0b" opacity="0.7"/>
+
+  <!-- ─────── LABEL ─────── -->
+  <text x="400" y="292" text-anchor="middle" font-size="22" font-weight="700" fill="#a78bfa" font-family="monospace,sans-serif" letter-spacing="1">webserial-core</text>
+  <text x="400" y="318" text-anchor="middle" font-size="12" fill="#71717a" font-family="sans-serif" letter-spacing="0.5">Type-safe · Event-driven · Multi-transport</text>
+
+  <!-- Decorative dots below label -->
+  <circle cx="340" cy="340" r="2.5" fill="#6366f1" opacity="0.5"/>
+  <circle cx="356" cy="340" r="2.5" fill="#a78bfa" opacity="0.6"/>
+  <circle cx="372" cy="340" r="2.5" fill="#a78bfa" opacity="0.8"/>
+  <circle cx="388" cy="340" r="2.5" fill="#a78bfa"/>
+  <circle cx="400" cy="340" r="3"   fill="#a78bfa"/>
+  <circle cx="412" cy="340" r="2.5" fill="#a78bfa"/>
+  <circle cx="428" cy="340" r="2.5" fill="#a78bfa" opacity="0.8"/>
+  <circle cx="444" cy="340" r="2.5" fill="#22c55e" opacity="0.6"/>
+  <circle cx="460" cy="340" r="2.5" fill="#22c55e" opacity="0.5"/>
+</svg>

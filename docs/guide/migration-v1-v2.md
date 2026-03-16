@@ -1,111 +1,51 @@
-# Migration Guide: v1 → v2
+# Migrating from v1
 
-> **⚠️ Breaking Changes**
->
-> Version 2 is a complete rewrite with significant breaking changes.
-> Read this guide carefully before upgrading.
+> **v2 is a complete rewrite of webserial-core and is not backwards compatible with v1.**
 
-## Summary of breaking changes
+Version 2 introduces a new architecture, new adapter system, new folder structure, new build
+output format, and changes to every public API. There is no incremental upgrade path.
 
-| Area                   | v1                             | v2                                           |
-| ---------------------- | ------------------------------ | -------------------------------------------- |
-| Package structure      | Flat `src/`                    | `src/core/`, `src/adapters/`, `src/types/`   |
-| Provider import        | `src/providers/WebUsbProvider` | `webserial-core` (re-exported from adapters) |
-| Bluetooth support      | Not included                   | `createBluetoothProvider()`                  |
-| WebSocket support      | Not included                   | `createWebSocketProvider(url)`               |
-| `CommandQueue` options | Inline object type             | Named `CommandQueueOptions` interface        |
-| Import extensions      | Bare specifiers                | `.js` extensions (ESM-compatible)            |
-| Build output           | Single format                  | ESM (`.mjs`) + CJS (`.cjs`) + UMD            |
+---
 
-## Step-by-step upgrade
+## Recommended approach
 
-### 1. Update the package
+The cleanest way to migrate is to **start fresh** with v2:
 
-```bash
-npm install webserial-core@latest
-```
+1. Uninstall v1 and install v2:
 
-### 2. Update import paths
+   ```bash
+   npm remove webserial-core
+   npm install webserial-core@latest
+   ```
 
-#### WebUsbProvider
+2. Delete any existing extension of the old `SerialDevice` class.
 
-**v1:**
+3. Create a new class extending `AbstractSerialDevice<T>` following the
+   [Getting started](./getting-started.md) guide.
 
-```ts
-import { WebUsbProvider } from "webserial-core/providers/WebUsbProvider";
-```
+---
 
-**v2:**
+## Why a full rewrite?
 
-```ts
-import { WebUsbProvider } from "webserial-core";
-// or explicitly from the adapter sub-path:
-import { WebUsbProvider } from "webserial-core/adapters/web-usb";
-```
+Version 1 was a prototype that proved the concept. Version 2 was designed from scratch with
+the following goals that required breaking changes at every layer:
 
-#### All other imports
+- **Strict TypeScript** — no `any`, full JSDoc, named interfaces for every option
+- **Modular adapter system** — WebUSB, Web Bluetooth, and WebSocket are first-class transports
+- **Dual ESM + CJS output** — proper `.mjs` / `.cjs` / `.umd.cjs` build via Vite
+- **Isolated responsibilities** — parsers, queue, events, registry, and adapters are all
+  separate modules that can be tested independently
+- **English-only source** — all source code, JSDoc, and error messages are in English
 
-All public API (classes, parsers, types, errors) is re-exported from the
-main entry point and remains unchanged:
+---
 
-```ts
-import {
-  AbstractSerialDevice,
-  delimiter,
-  fixedLength,
-  raw,
-  SerialPortConflictError,
-  // ...
-} from "webserial-core";
-```
+## Reference
 
-### 3. Web Bluetooth (new in v2)
+:::tip Start here
+Read the [Getting started](./getting-started.md) guide for the full v2 API.
+:::
 
-```ts
-import { AbstractSerialDevice } from "webserial-core";
-import { createBluetoothProvider } from "webserial-core";
-
-AbstractSerialDevice.setProvider(createBluetoothProvider());
-```
-
-### 4. WebSocket bridge (new in v2)
-
-```ts
-import { AbstractSerialDevice, createWebSocketProvider } from "webserial-core";
-
-AbstractSerialDevice.setProvider(
-  createWebSocketProvider("ws://localhost:8080"),
-);
-```
-
-### 5. `CommandQueueOptions` (renamed type)
-
-If you referenced the `CommandQueue` constructor options type directly:
-
-**v1:** Inline anonymous object type (not exported).
-
-**v2:** Exported named interface:
-
-```ts
-import type { CommandQueueOptions } from "webserial-core";
-```
-
-### 6. Build output filenames
-
-If you reference the compiled output directly (e.g. in a `<script>` tag or
-Rollup external):
-
-| v1                        | v2                                       |
-| ------------------------- | ---------------------------------------- |
-| `dist/webserial-core.js`  | `dist/webserial-core.mjs` (ESM)          |
-| `dist/webserial-core.cjs` | `dist/webserial-core.cjs` (unchanged)    |
-| —                         | `dist/webserial-core.umd.cjs` (UMD, new) |
-
-## What did not change
-
-- `AbstractSerialDevice<T>` API — all methods and events are identical
-- All parsers (`delimiter`, `fixedLength`, `raw`) — same signature
-- All error classes — same names and constructor signatures
-- `SerialRegistry` — same static API
-- `SerialEventEmitter<T>` — same `on`/`off`/`emit` API
-- `SerialDeviceOptions<T>` — same fields (plus `provider` is now optional per-instance)
+- [API — AbstractSerialDevice](../api/abstract-serial-device.md)
+- [API — Events](../api/events.md)
+- [API — Parsers](../api/parsers.md)
+- [Examples](../examples/web-serial.md)

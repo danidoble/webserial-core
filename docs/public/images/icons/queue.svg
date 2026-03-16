@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#a78bfa" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+  <!-- FIFO queue: three horizontal bars + right arrow -->
+  <rect x="2" y="4"  width="15" height="3.5" rx="1.5"/>
+  <rect x="2" y="10" width="15" height="3.5" rx="1.5"/>
+  <rect x="2" y="16" width="15" height="3.5" rx="1.5"/>
+  <!-- Arrow pointing out (command dispatch) -->
+  <polyline points="18,8 22,12 18,16" stroke="#22c55e" stroke-width="2"/>
+</svg>

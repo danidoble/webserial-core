@@ -86,6 +86,10 @@ For messages shorter than 20 bytes, there is no split and no delay.
 
 ## Live demo
 
+👉 **[Open interactive demo](/demos/web-bluetooth.html)** — runs directly in your browser
+
+Or run locally:
+
 ```bash
 npm run dev
 # Then open http://localhost:5173/demos/web-bluetooth/
