@@ -1,0 +1,16 @@
+{
+  "name": "ws-serial-bridge",
+  "version": "1.0.0",
+  "description": "Puente WebSocket ↔ SerialPort para AbstractSerialDevice",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@serialport/parser-readline": "^13.0.0",
+    "serialport": "^12.0.0",
+    "ws": "^8.18.0"
+  }
+}

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WebSerial — Arduino Test</title>
+    <title>WebSerial — Web Bluetooth Test</title>
     <style>
       *,
       *::before,
@@ -48,12 +48,23 @@
       header h1 {
         font-size: 1.15rem;
         font-weight: 600;
-        color: #a78bfa;
+        color: #a855f7; /* Purple theme for Bluetooth */
       }
 
       header span {
         font-size: 0.8rem;
         color: #71717a;
+      }
+
+      .badge {
+        background: #a855f7;
+        color: #fff;
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 999px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
       }
 
       .controls {
@@ -82,12 +93,12 @@
       }
 
       #btn-connect {
-        background: #22c55e;
-        color: #052e16;
+        background: #a855f7;
+        color: #fff;
       }
 
       #btn-connect:hover:not(:disabled) {
-        background: #16a34a;
+        background: #9333ea;
       }
 
       #btn-disconnect {
@@ -118,7 +129,7 @@
       }
 
       .send-row input:focus {
-        border-color: #a78bfa;
+        border-color: #a855f7;
       }
 
       .send-row input:disabled {
@@ -135,14 +146,14 @@
       }
 
       #mode-toggle {
-        background: #a78bfa;
-        color: #09090b;
+        background: #a855f7;
+        color: #fff;
         font-weight: 700;
         min-width: 54px;
       }
 
       #mode-toggle:hover {
-        background: #8b5cf6;
+        background: #9333ea;
       }
 
       #log {
@@ -165,7 +176,7 @@
       }
 
       .log-event {
-        color: #38bdf8;
+        color: #c084fc; /* lighter purple for events */
       }
 
       .log-data {
@@ -202,18 +213,39 @@
       .nav-link:hover {
         color: #a78bfa;
       }
+
+      .notice {
+        margin: 0 24px 16px;
+        padding: 14px 16px;
+        background: #1c1917;
+        border: 1px solid #44403c;
+        border-left: 3px solid #a855f7;
+        border-radius: 8px;
+        font-size: 0.78rem;
+        line-height: 1.6;
+        color: #d6d3d1;
+      }
     </style>
   </head>
   <body>
     <div id="app">
       <header>
-        <h1>⚡ Arduino Serial Test</h1>
+        <h1>🔌 Web Bluetooth Test</h1>
+        <span class="badge">BLE (GATT)</span>
         <span>WebSerial Core v2</span>
       </header>
 
       <div class="controls">
-        <button id="btn-connect">Connect</button>
+        <button id="btn-connect">Pair Bluetooth Device</button>
         <button id="btn-disconnect" disabled>Disconnect</button>
+      </div>
+
+      <div class="notice">
+        This page uses a custom <strong>Web Bluetooth Provider</strong>. It
+        connects to wireless devices using the BLE GATT Nordic UART Service
+        (<code>6e400001</code>).<br /><br />
+        You can use devices like an nRF52, ESP32 BLE UART, or any module
+        sporting the standard Nordic UART service.
       </div>
 
       <div class="send-row">
@@ -229,21 +261,9 @@
 
       <div id="log"></div>
 
-      <a class="nav-link" href="/usb.html">→ WebUSB Polyfill Test</a>
-      <a
-        class="nav-link"
-        style="border-top: none; padding-top: 0"
-        href="/ws.html"
-        >→ WebSocket Polyfill Test (Node.js)</a
-      >
-      <a
-        class="nav-link"
-        style="border-top: none; padding-top: 0"
-        href="/ble.html"
-        >→ Web Bluetooth Test (BLE UART)</a
-      >
+      <a class="nav-link" href="/">← Back to Native Serial test</a>
     </div>
 
-    <script type="module" src="/tests/ArduinoDevice.ts"></script>
+    <script type="module" src="/tests/ArduinoDeviceBLE.ts"></script>
   </body>
 </html>

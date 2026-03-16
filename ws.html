@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WebSerial — Arduino Test</title>
+    <title>WebSerial — WebSocket Polyfill Test</title>
     <style>
       *,
       *::before,
@@ -48,12 +48,23 @@
       header h1 {
         font-size: 1.15rem;
         font-weight: 600;
-        color: #a78bfa;
+        color: #3b82f6; /* Blue theme for WebSocket */
       }
 
       header span {
         font-size: 0.8rem;
         color: #71717a;
+      }
+
+      .badge {
+        background: #3b82f6;
+        color: #09090b;
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 999px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
       }
 
       .controls {
@@ -82,12 +93,12 @@
       }
 
       #btn-connect {
-        background: #22c55e;
-        color: #052e16;
+        background: #3b82f6;
+        color: #fff;
       }
 
       #btn-connect:hover:not(:disabled) {
-        background: #16a34a;
+        background: #2563eb;
       }
 
       #btn-disconnect {
@@ -118,7 +129,7 @@
       }
 
       .send-row input:focus {
-        border-color: #a78bfa;
+        border-color: #3b82f6;
       }
 
       .send-row input:disabled {
@@ -135,14 +146,14 @@
       }
 
       #mode-toggle {
-        background: #a78bfa;
-        color: #09090b;
+        background: #3b82f6;
+        color: #fff;
         font-weight: 700;
         min-width: 54px;
       }
 
       #mode-toggle:hover {
-        background: #8b5cf6;
+        background: #2563eb;
       }
 
       #log {
@@ -165,7 +176,7 @@
       }
 
       .log-event {
-        color: #38bdf8;
+        color: #60a5fa; /* lighter blue for events */
       }
 
       .log-data {
@@ -202,18 +213,40 @@
       .nav-link:hover {
         color: #a78bfa;
       }
+
+      .notice {
+        margin: 0 24px 16px;
+        padding: 14px 16px;
+        background: #1c1917;
+        border: 1px solid #44403c;
+        border-left: 3px solid #3b82f6;
+        border-radius: 8px;
+        font-size: 0.78rem;
+        line-height: 1.6;
+        color: #d6d3d1;
+      }
     </style>
   </head>
   <body>
     <div id="app">
       <header>
-        <h1>⚡ Arduino Serial Test</h1>
+        <h1>🔌 WebSocket Polyfill Test</h1>
+        <span class="badge">POLYFILL (WS)</span>
         <span>WebSerial Core v2</span>
       </header>
 
       <div class="controls">
-        <button id="btn-connect">Connect</button>
+        <button id="btn-connect">Connect via Node.js Server</button>
         <button id="btn-disconnect" disabled>Disconnect</button>
+      </div>
+
+      <div class="notice">
+        This page uses a custom <strong>WebSocket Provider</strong>. It connects
+        to <code>ws://localhost:8080</code> instead of using the browser's
+        native USB API.<br /><br />
+        For this test to work, you need to run a Node.js server that uses
+        <code>serialport</code> and acts as a bridge. Please refer to the README
+        for the Node Server code snippet.
       </div>
 
       <div class="send-row">
@@ -229,21 +262,15 @@
 
       <div id="log"></div>
 
-      <a class="nav-link" href="/usb.html">→ WebUSB Polyfill Test</a>
-      <a
-        class="nav-link"
-        style="border-top: none; padding-top: 0"
-        href="/ws.html"
-        >→ WebSocket Polyfill Test (Node.js)</a
-      >
+      <a class="nav-link" href="/">← Back to Native Serial test</a>
       <a
         class="nav-link"
         style="border-top: none; padding-top: 0"
         href="/ble.html"
-        >→ Web Bluetooth Test (BLE UART)</a
+        >→ Go to Web Bluetooth Test</a
       >
     </div>
 
-    <script type="module" src="/tests/ArduinoDevice.ts"></script>
+    <script type="module" src="/tests/ArduinoDeviceWS.ts"></script>
   </body>
 </html>

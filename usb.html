@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WebSerial — Arduino Test</title>
+    <title>WebSerial — WebUSB Polyfill Test</title>
     <style>
       *,
       *::before,
@@ -48,12 +48,23 @@
       header h1 {
         font-size: 1.15rem;
         font-weight: 600;
-        color: #a78bfa;
+        color: #f97316;
       }
 
       header span {
         font-size: 0.8rem;
         color: #71717a;
+      }
+
+      .badge {
+        background: #f97316;
+        color: #09090b;
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 999px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
       }
 
       .controls {
@@ -82,12 +93,12 @@
       }
 
       #btn-connect {
-        background: #22c55e;
-        color: #052e16;
+        background: #f97316;
+        color: #09090b;
       }
 
       #btn-connect:hover:not(:disabled) {
-        background: #16a34a;
+        background: #ea580c;
       }
 
       #btn-disconnect {
@@ -118,7 +129,7 @@
       }
 
       .send-row input:focus {
-        border-color: #a78bfa;
+        border-color: #f97316;
       }
 
       .send-row input:disabled {
@@ -135,14 +146,14 @@
       }
 
       #mode-toggle {
-        background: #a78bfa;
+        background: #f97316;
         color: #09090b;
         font-weight: 700;
         min-width: 54px;
       }
 
       #mode-toggle:hover {
-        background: #8b5cf6;
+        background: #ea580c;
       }
 
       #log {
@@ -165,7 +176,7 @@
       }
 
       .log-event {
-        color: #38bdf8;
+        color: #fb923c;
       }
 
       .log-data {
@@ -202,18 +213,57 @@
       .nav-link:hover {
         color: #a78bfa;
       }
+
+      .notice {
+        margin: 0 24px 16px;
+        padding: 14px 16px;
+        background: #1c1917;
+        border: 1px solid #44403c;
+        border-left: 3px solid #f97316;
+        border-radius: 8px;
+        font-size: 0.78rem;
+        line-height: 1.6;
+        color: #d6d3d1;
+      }
+
+      .notice strong {
+        color: #f97316;
+      }
+
+      .notice code {
+        background: #292524;
+        padding: 1px 5px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        color: #fbbf24;
+      }
     </style>
   </head>
   <body>
     <div id="app">
       <header>
-        <h1>⚡ Arduino Serial Test</h1>
+        <h1>🔌 WebUSB Polyfill Test</h1>
+        <span class="badge">POLYFILL</span>
         <span>WebSerial Core v2</span>
       </header>
 
       <div class="controls">
-        <button id="btn-connect">Connect</button>
+        <button id="btn-connect">Connect via WebUSB</button>
         <button id="btn-disconnect" disabled>Disconnect</button>
+      </div>
+      <div class="notice">
+        <strong>⚠ Desktop limitation:</strong> On <strong>Linux</strong>,
+        <strong>Windows</strong>, and <strong>macOS</strong>, USB-serial devices
+        (CP2102, CH340, FTDI, etc.) are automatically claimed by OS kernel
+        drivers (<code>cp210x</code>, <code>ch341</code>,
+        <code>usbserial</code>). WebUSB <strong>cannot</strong> access devices
+        already claimed by a driver — the device picker will appear empty.<br /><br />
+        This polyfill is designed for <strong>Android Chrome</strong>, where the
+        OS does not load USB-serial kernel drivers, leaving the device available
+        for WebUSB access.<br /><br />
+        On desktop, use the
+        <a href="/" style="color: #a78bfa">Native Web Serial test</a>
+        instead.
       </div>
 
       <div class="send-row">
@@ -229,21 +279,21 @@
 
       <div id="log"></div>
 
-      <a class="nav-link" href="/usb.html">→ WebUSB Polyfill Test</a>
+      <a class="nav-link" href="/">← Back to Native Serial test</a>
       <a
         class="nav-link"
         style="border-top: none; padding-top: 0"
         href="/ws.html"
-        >→ WebSocket Polyfill Test (Node.js)</a
+        >→ Go to WebSocket Test</a
       >
       <a
         class="nav-link"
         style="border-top: none; padding-top: 0"
         href="/ble.html"
-        >→ Web Bluetooth Test (BLE UART)</a
+        >→ Go to Web Bluetooth Test</a
       >
     </div>
 
-    <script type="module" src="/tests/ArduinoDevice.ts"></script>
+    <script type="module" src="/tests/ArduinoDeviceUSB.ts"></script>
   </body>
 </html>

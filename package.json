@@ -1,85 +1,60 @@
 {
   "name": "webserial-core",
-  "description": "Webserial Core to easy connections with serial devices",
-  "version": "1.2.1",
-  "type": "module",
-  "license": "MIT",
+  "version": "2.0.0-dev",
   "author": "danidoble",
   "repository": {
     "type": "git",
-    "url": "https://github.com/danidoble/webserial-core.git"
+    "url": "https://github.com/danidoble/webserial-core"
   },
-  "bugs": {
-    "url": "https://github.com/danidoble/webserial-core/issues"
+  "main": "./dist/webserial-core.cjs",
+  "module": "./dist/webserial-core.js",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/bun": "^1.3.10",
+    "@types/w3c-web-usb": "^1.0.13",
+    "@types/web-bluetooth": "^0.0.21",
+    "eslint": "^10.0.3",
+    "globals": "^17.4.0",
+    "jiti": "^2.6.1",
+    "prettier": "3.8.1",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.57.0",
+    "vite": "^8.0.0",
+    "vite-plugin-dts": "^4.5.4"
   },
-  "homepage": "https://github.com/danidoble/webserial-core#readme",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/webserial-core.js",
+      "require": "./dist/webserial-core.cjs",
+      "default": "./dist/webserial-core.js"
+    }
+  },
+  "description": "A strongly-typed, event-driven, abstract TypeScript library for the Web Serial API with custom parsers, command queue, handshake validation, and auto-reconnect.",
+  "files": [
+    "dist"
+  ],
   "keywords": [
     "webserial",
     "serial",
-    "core",
-    "web",
-    "iot",
-    "device",
-    "communication",
-    "usb"
+    "web-serial-api",
+    "typescript",
+    "event-driven",
+    "abstract",
+    "parser",
+    "arduino",
+    "embedded",
+    "usb",
+    "hardware"
   ],
-  "files": [
-    "dist",
-    "README.md"
-  ],
-  "main": "./dist/webserial-core.umd.cjs",
-  "module": "./dist/webserial-core.js",
-  "types": "./dist/types/main.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/types/main.d.ts",
-      "import": "./dist/webserial-core.js",
-      "require": "./dist/webserial-core.umd.cjs"
-    }
-  },
+  "license": "MIT",
   "scripts": {
     "dev": "vite",
-    "build": "rm -rf dist && prettier --write ./lib/**/*.ts && tsc && vite build",
+    "build": "tsc && vite build",
     "preview": "vite preview",
-    "lint": "eslint --ext .ts ./lib",
-    "format": "prettier --write ./lib/**/*.ts",
-    "test": "vitest",
-    "test:ui": "vitest --ui",
-    "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "lint": "eslint . --fix",
+    "format": "prettier . --write"
   },
-  "peerDependencies": {
-    "socket.io-client": "^4.8.3"
-  },
-  "engines": {
-    "node": ">=18.0.0"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.39.3",
-    "@types/w3c-web-serial": "^1.0.8",
-    "@vitest/coverage-v8": "^4.0.18",
-    "@vitest/ui": "^4.0.18",
-    "eslint": "^9.39.3",
-    "globals": "^16.5.0",
-    "happy-dom": "^20.7.0",
-    "lint-staged": "^16.3.1",
-    "prettier": "3.6.2",
-    "typescript": "~5.9.3",
-    "typescript-eslint": "^8.56.1",
-    "vite": "^7.3.1",
-    "vitest": "^4.0.18"
-  },
-  "lint-staged": {
-    "lib/**/*.ts": [
-      "prettier --write",
-      "eslint --fix"
-    ],
-    "tests/**/*.ts": [
-      "prettier --write",
-      "eslint --fix"
-    ]
-  },
-  "publishConfig": {
-    "access": "public"
-  }
+  "type": "module",
+  "types": "./dist/index.d.ts"
 }
