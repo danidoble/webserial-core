@@ -2,6 +2,7 @@ import { defineConfig, type DefaultTheme } from "vitepress";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import llmstxt from "vitepress-plugin-llms";
 
 // ---------------------------------------------------------------------------
 // Load .env from project root (two levels up from docs/.vitepress/)
@@ -156,10 +157,33 @@ const esSidebar: DefaultTheme.SidebarItem[] = [
 const v1Sidebar: DefaultTheme.SidebarItem[] = [
   {
     text: "v1 (Legacy)",
+    items: [{ text: "Overview", link: "/v1/" }],
+  },
+  {
+    text: "Guide",
+    items: [{ text: "Getting Started", link: "/v1/guide/getting-started" }],
+  },
+  {
+    text: "API Reference",
     items: [
-      { text: "Overview", link: "/v1/" },
-      { text: "Getting Started", link: "/v1/guide/getting-started" },
+      { text: "Core", link: "/v1/api/core" },
+      { text: "Devices", link: "/v1/api/devices" },
+      { text: "Dispatcher", link: "/v1/api/dispatcher" },
+      { text: "Socket", link: "/v1/api/socket" },
+      { text: "SerialError", link: "/v1/api/serial-error" },
+      { text: "Events", link: "/v1/api/events" },
     ],
+  },
+  {
+    text: "Examples",
+    items: [
+      { text: "Arduino (Web Serial)", link: "/v1/examples/arduino" },
+      { text: "Socket.io Bridge", link: "/v1/examples/socket-bridge" },
+    ],
+  },
+  {
+    text: "Upgrade",
+    items: [{ text: "Migration v1 → v2", link: "/guide/migration-v1-v2" }],
   },
 ];
 
@@ -237,6 +261,8 @@ export default defineConfig({
   },
 
   head: [
+    ["link", { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" }],
+    ["link", { rel: "shortcut icon", href: "/favicon.svg" }],
     ["meta", { name: "theme-color", content: "#a78bfa" }],
     ["meta", { property: "og:type", content: "website" }],
     ["meta", { property: "og:title", content: "webserial-core" }],
@@ -250,5 +276,11 @@ export default defineConfig({
     ],
     ["meta", { property: "og:image", content: "/images/cover.svg" }],
     ["meta", { name: "twitter:card", content: "summary_large_image" }],
+    ["meta", { name: "robots", content: "index, follow" }],
   ],
+
+  vite: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    plugins: [llmstxt({ generateLLMsFullTxt: true }) as any],
+  },
 });

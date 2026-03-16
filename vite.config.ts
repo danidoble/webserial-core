@@ -5,8 +5,8 @@ import dts from "vite-plugin-dts";
 export default defineConfig({
   build: {
     // Enable minification for smaller production bundles.
-    // esbuild is fast and reduces size by ~35% compared to unminified output.
-    minify: "esbuild",
+    // Vite 8 uses Rolldown/OXC — set to true to use the built-in minifier.
+    minify: true,
     lib: {
       entry: resolve(__dirname, "src/index.ts"),
       name: "WebSerialCore",
