@@ -55,7 +55,6 @@ jobs:
       # Reindex Algolia after a successful build.
       # Only runs when ALGOLIA_WRITE_API_KEY is configured as a repo secret.
       - name: Reindex Algolia docs
-        if: ${{ secrets.ALGOLIA_WRITE_API_KEY != '' }}
         run: node scripts/algolia-index.mjs
         env:
           ALGOLIA_APP_ID: ${{ secrets.ALGOLIA_APP_ID }}
