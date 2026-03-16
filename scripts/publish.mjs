@@ -19,6 +19,7 @@
 
 import { execSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { createInterface } from "node:readline";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -202,109 +203,295 @@ function updateChangelog(version) {
 
 const argv = process.argv.slice(2);
 
-/** @type {"patch"|"minor"|"major"} */
-const bump = /** @type {any} */ (
-  argv.find((a) => ["--patch", "--minor", "--major"].includes(a))?.slice(2) ??
-    "patch"
-);
-
 const dryRun = argv.includes("--dry-run");
 
-/**
- * --stable: drop any pre-release tag and produce a clean stable version.
- * Without this flag, a pre-release version (e.g. 2.0.0-alpha.1) stays
- * pre-release after bumping (e.g. 2.0.0-alpha.2 or 2.0.1-alpha.1).
- */
-const stable = argv.includes("--stable");
-
-const tagArgIndex = argv.indexOf("--tag");
-const distTag = tagArgIndex !== -1 ? argv[tagArgIndex + 1] : "latest";
-
-if (!distTag || distTag.startsWith("--")) {
-  console.error("Error: --tag requires a value (e.g. --tag beta)");
-
-  process.exit(1);
-}
-
-// ---------------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------------
-
-console.log(`\n🚀  webserial-core release pipeline`);
-console.log(`   bump:     ${bump}`);
-console.log(`   stable:   ${stable}`);
-console.log(`   dist-tag: ${distTag}`);
-console.log(`   dry-run:  ${dryRun}`);
-
-// 1. Guard: clean working tree
-if (!dryRun) {
-  const status = execSync("git status --porcelain", { cwd: ROOT })
-    .toString()
-    .trim();
-  if (status) {
-    console.error(
-      "\nError: working directory has uncommitted changes.\n" +
-        "Commit or stash your changes before releasing, or pass --dry-run.\n",
-    );
-
-    process.exit(1);
-  }
-}
-
-// 2. Lint
-run(`${px} eslint . --max-warnings 0`, "Lint");
-
-// 3. Type-check
-run(`${px} tsc --noEmit`, "Type-check");
-
-// 4. Build
-run(`${px} vite build`, "Build");
-
-// 5. Bump version
-const pkg = readPkg();
-const oldVersion = pkg.version;
-const newVersion = bumpVersion(oldVersion, bump, stable);
-pkg.version = newVersion;
-writePkg(pkg);
-console.log(`\n  ✔ Bumped ${oldVersion} → ${newVersion}`);
-
-// 6. Update CHANGELOG
-updateChangelog(newVersion);
-
-if (dryRun) {
-  console.log(
-    "\n✅  Dry-run complete. Version bumped and changelog updated locally.\n" +
-      "   No commits, tags, pushes, or npm publish were performed.\n",
-  );
-
-  process.exit(0);
-}
-
-// 7. Commit + tag + push
-run(`git add package.json CHANGELOG.md`, "Stage release files");
-run(`git commit -m "chore: release v${newVersion}"`, "Commit");
-run(`git tag v${newVersion} -m "v${newVersion}"`, "Tag");
-run("git push", "Push commits");
-run("git push --tags", "Push tag");
-
-// 8. Publish
-// bun publish works identically to npm publish and does NOT require package-lock.json.
-run(
-  `${pm} publish --access public --tag ${distTag}`,
-  `Publish to npm registry (via ${pm})`,
+// Non-interactive overrides (useful for CI).
+// When ALL three are provided via flags, the interactive prompt is skipped.
+const flagBump = /** @type {"patch"|"minor"|"major"|null} */ (
+  argv.find((a) => ["--patch", "--minor", "--major"].includes(a))?.slice(2) ??
+    null
 );
+const flagStable = argv.includes("--stable");
+const tagArgIndex = argv.indexOf("--tag");
+const flagDistTag = tagArgIndex !== -1 ? (argv[tagArgIndex + 1] ?? null) : null;
 
-// 9. Reindex Algolia docs (optional — only runs when ALGOLIA_WRITE_API_KEY is set)
-if (
-  process.env.ALGOLIA_APP_ID &&
-  process.env.ALGOLIA_WRITE_API_KEY &&
-  process.env.ALGOLIA_INDEX_NAME
-) {
-  run("node scripts/algolia-index.mjs", "Reindex Algolia docs");
-} else {
+// ---------------------------------------------------------------------------
+// Interactive prompt helpers
+// ---------------------------------------------------------------------------
+
+/** @param {string} question @returns {Promise<string>} */
+function ask(question) {
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    terminal: true,
+  });
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer.trim());
+    });
+  });
+}
+
+/**
+ * Build a menu of version choices from the current version.
+ * @param {string} current
+ * @returns {{ label: string; bump: "patch"|"minor"|"major"; stable: boolean; distTag: string; version: string }[]}
+ */
+function buildChoices(current) {
+  const dashIdx = current.indexOf("-");
+  const prerelease =
+    dashIdx !== -1 ? current.slice(dashIdx + 1).split("+")[0] : null;
+
+  /** @type {{ label: string; bump: "patch"|"minor"|"major"; stable: boolean; distTag: string }[]} */
+  const combos = [];
+
+  if (prerelease) {
+    // Currently on a pre-release — offer counter/base bumps keeping the tag,
+    // plus a "promote to stable" option.
+    combos.push(
+      {
+        label: `patch  (keep ${prerelease})`,
+        bump: "patch",
+        stable: false,
+        distTag: prerelease.split(".")[0],
+      },
+      {
+        label: `minor  (keep ${prerelease})`,
+        bump: "minor",
+        stable: false,
+        distTag: prerelease.split(".")[0],
+      },
+      {
+        label: `major  (keep ${prerelease})`,
+        bump: "major",
+        stable: false,
+        distTag: prerelease.split(".")[0],
+      },
+      {
+        label: `patch  → stable`,
+        bump: "patch",
+        stable: true,
+        distTag: "latest",
+      },
+      {
+        label: `minor  → stable`,
+        bump: "minor",
+        stable: true,
+        distTag: "latest",
+      },
+      {
+        label: `major  → stable`,
+        bump: "major",
+        stable: true,
+        distTag: "latest",
+      },
+    );
+  } else {
+    // Currently stable — offer plain bumps and pre-release variants.
+    for (const bump of /** @type {const} */ (["patch", "minor", "major"])) {
+      combos.push({
+        label: `${bump}  (stable)`,
+        bump,
+        stable: true,
+        distTag: "latest",
+      });
+    }
+    for (const tag of ["alpha", "beta", "dev", "rc"]) {
+      for (const bump of /** @type {const} */ (["patch", "minor", "major"])) {
+        combos.push({
+          label: `${bump}  → ${tag}`,
+          bump,
+          stable: false,
+          distTag: tag,
+        });
+      }
+    }
+  }
+
+  return combos.map((c) => ({
+    ...c,
+    version: bumpVersion(current, c.bump, c.stable),
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// Main (async so we can await readline prompts)
+// ---------------------------------------------------------------------------
+
+async function main() {
+  console.log(`\n🚀  webserial-core release pipeline`);
+  console.log(`   dry-run: ${dryRun}\n`);
+
+  const currentPkg = readPkg();
+  const currentVersion = currentPkg.version;
+
+  console.log(`   Current version: ${currentVersion}`);
+
+  /** @type {"patch"|"minor"|"major"} */
+  let bump;
+  /** @type {boolean} */
+  let stable;
+  /** @type {string} */
+  let distTag;
+  /** @type {string} */
+  let newVersion;
+
+  const ciMode = flagBump !== null && flagDistTag !== null;
+
+  if (ciMode) {
+    // All flags provided — non-interactive (CI path)
+    bump = flagBump;
+    stable = flagStable;
+    distTag = flagDistTag;
+    newVersion = bumpVersion(currentVersion, bump, stable);
+    console.log(`   New version:     ${newVersion}`);
+    console.log(`   dist-tag:        ${distTag}`);
+  } else {
+    // Interactive path ─────────────────────────────────────────────────────
+    const choices = buildChoices(currentVersion);
+
+    console.log("\n   Available version bumps:\n");
+    choices.forEach((c, i) => {
+      console.log(
+        `   [${String(i + 1).padStart(2)}]  ${c.version.padEnd(22)} ${c.label}`,
+      );
+    });
+    console.log(`\n   [ c]  Custom version  (type your own)`);
+    console.log(`   [ q]  Quit\n`);
+
+    let chosen;
+    while (true) {
+      const input = await ask("   Select option: ");
+
+      if (input.toLowerCase() === "q") {
+        console.log("\n   Aborted.\n");
+        process.exit(0);
+      }
+
+      if (input.toLowerCase() === "c") {
+        const custom = await ask("   Enter exact version (e.g. 2.1.0-rc.1): ");
+        if (!/^\d+\.\d+\.\d+(-[\w.]+)?$/.test(custom)) {
+          console.log("   ✗ Invalid semver. Try again.");
+          continue;
+        }
+        // eslint-disable-next-line no-useless-assignment
+        chosen = null;
+        newVersion = custom;
+        // Derive distTag from pre-release part of custom version
+        const pre = custom.includes("-")
+          ? custom.split("-")[1].split(".")[0]
+          : "latest";
+        distTag = pre;
+        // eslint-disable-next-line no-useless-assignment
+        bump = "patch"; // unused but required for type
+        // eslint-disable-next-line no-useless-assignment
+        stable = !custom.includes("-");
+        break;
+      }
+
+      const idx = parseInt(input, 10) - 1;
+      if (isNaN(idx) || idx < 0 || idx >= choices.length) {
+        console.log("   ✗ Invalid selection. Try again.");
+        continue;
+      }
+      chosen = choices[idx];
+      // eslint-disable-next-line no-useless-assignment
+      bump = chosen.bump;
+      // eslint-disable-next-line no-useless-assignment
+      stable = chosen.stable;
+      distTag = chosen.distTag;
+      newVersion = chosen.version;
+      break;
+    }
+
+    console.log(`\n   New version:     ${newVersion}`);
+    console.log(`   dist-tag:        ${distTag}`);
+
+    // Final confirmation
+    const confirm = await ask(
+      `\n   Confirm release v${newVersion} (dist-tag: ${distTag})? [y/N] `,
+    );
+    if (confirm.toLowerCase() !== "y") {
+      console.log("\n   Aborted.\n");
+      process.exit(0);
+    }
+  }
+
+  // 1. Guard: clean working tree
+  if (!dryRun) {
+    const status = execSync("git status --porcelain", { cwd: ROOT })
+      .toString()
+      .trim();
+    if (status) {
+      console.error(
+        "\nError: working directory has uncommitted changes.\n" +
+          "Commit or stash your changes before releasing, or pass --dry-run.\n",
+      );
+      process.exit(1);
+    }
+  }
+
+  // 2. Lint
+  run(`${px} eslint . --max-warnings 0`, "Lint");
+
+  // 3. Type-check
+  run(`${px} tsc --noEmit`, "Type-check");
+
+  // 4. Build
+  run(`${px} vite build`, "Build");
+
+  // 5. Write version
+  const pkg = readPkg();
+  const oldVersion = pkg.version;
+  pkg.version = newVersion;
+  writePkg(pkg);
+  console.log(`\n  ✔ Bumped ${oldVersion} → ${newVersion}`);
+
+  // 6. Update CHANGELOG
+  updateChangelog(newVersion);
+
+  if (dryRun) {
+    console.log(
+      "\n✅  Dry-run complete. Version bumped and changelog updated locally.\n" +
+        "   No commits, tags, pushes, or npm publish were performed.\n",
+    );
+    process.exit(0);
+  }
+
+  // 7. Commit + tag + push
+  run(`git add package.json CHANGELOG.md`, "Stage release files");
+  run(`git commit -m "chore: release v${newVersion}"`, "Commit");
+  run(`git tag v${newVersion} -m "v${newVersion}"`, "Tag");
+  run("git push", "Push commits");
+  run("git push --tags", "Push tag");
+
+  // 8. Publish
+  run(
+    `${pm} publish --access public --tag ${distTag}`,
+    `Publish to npm registry (via ${pm})`,
+  );
+
+  // 9. Reindex Algolia docs (optional — only runs when ALGOLIA_WRITE_API_KEY is set)
+  if (
+    process.env.ALGOLIA_APP_ID &&
+    process.env.ALGOLIA_WRITE_API_KEY &&
+    process.env.ALGOLIA_INDEX_NAME
+  ) {
+    run("node scripts/algolia-index.mjs", "Reindex Algolia docs");
+  } else {
+    console.log(
+      "\n  ⚠  Algolia reindex skipped — set ALGOLIA_APP_ID, ALGOLIA_WRITE_API_KEY and ALGOLIA_INDEX_NAME to enable.\n",
+    );
+  }
+
   console.log(
-    "\n  ⚠  Algolia reindex skipped — set ALGOLIA_APP_ID, ALGOLIA_WRITE_API_KEY and ALGOLIA_INDEX_NAME to enable.\n",
+    `\n✅  Released webserial-core@${newVersion} (tag: ${distTag})\n`,
   );
 }
 
-console.log(`\n✅  Released webserial-core@${newVersion} (tag: ${distTag})\n`);
+main().catch((err) => {
+  console.error("\n❌ ", err.message);
+  process.exit(1);
+});

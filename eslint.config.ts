@@ -10,6 +10,9 @@ export default defineConfig([
       "node_modules/**",
       "docs/.vitepress/cache/**",
       "docs/.vitepress/dist/**",
+      // Generated assets copied by prepare-docs.mjs — not source files
+      "docs/public/dist/**",
+      "docs/public/demo-style.css",
     ],
   },
   {
