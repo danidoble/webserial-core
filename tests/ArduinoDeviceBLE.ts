@@ -4,8 +4,8 @@ import type { SerialProvider } from "../src/index";
 
 // ─── BLE UART Constants (Nordic UART Service) ──────────────────
 const NORDIC_UART_SERVICE = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-const TX_CHARACTERISTIC   = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"; // We write to this
-const RX_CHARACTERISTIC   = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"; // We read from this (notify)
+const TX_CHARACTERISTIC = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"; // We write to this
+const RX_CHARACTERISTIC = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"; // We read from this (notify)
 
 // ─── Web Bluetooth Provider Implementation ─────────────────────
 
@@ -15,9 +15,15 @@ function createBleSerialPort(device: BluetoothDevice): SerialPort {
   let server: BluetoothRemoteGATTServer | null = null;
 
   return {
-    get readable() { return readable; },
-    get writable() { return writable; },
-    getInfo() { return {}; },
+    get readable() {
+      return readable;
+    },
+    get writable() {
+      return writable;
+    },
+    getInfo() {
+      return {};
+    },
 
     async open() {
       if (!device.gatt) throw new Error("GATT not available");
@@ -29,7 +35,7 @@ function createBleSerialPort(device: BluetoothDevice): SerialPort {
       const service = await server.getPrimaryService(NORDIC_UART_SERVICE);
 
       log("Getting RX/TX characteristics...", "event");
-      
+
       const rxChar = await service.getCharacteristic(RX_CHARACTERISTIC);
       const txChar = await service.getCharacteristic(TX_CHARACTERISTIC);
 
@@ -102,7 +108,7 @@ AbstractSerialDevice.setProvider(createBluetoothProvider());
 export class ArduinoDeviceBLE extends AbstractSerialDevice<string> {
   constructor(baudRate: number = 9600) {
     super({
-      baudRate,       // Ignorado por BLE, se mantiene por compatibilidad de interfaz
+      baudRate, // Ignorado por BLE, se mantiene por compatibilidad de interfaz
       dataBits: 8,
       stopBits: 1,
       parity: "none",
@@ -132,12 +138,14 @@ export class ArduinoDeviceBLE extends AbstractSerialDevice<string> {
 
 // ─── UI helpers ────────────────────────────────────────────────
 
-const logContainer  = document.getElementById("log")           as HTMLDivElement;
-const connectBtn    = document.getElementById("btn-connect")    as HTMLButtonElement;
-const disconnectBtn = document.getElementById("btn-disconnect") as HTMLButtonElement;
-const sendBtn       = document.getElementById("btn-send")       as HTMLButtonElement;
-const sendInput     = document.getElementById("input-send")     as HTMLInputElement;
-const modeToggle    = document.getElementById("mode-toggle")    as HTMLButtonElement;
+const logContainer = document.getElementById("log") as HTMLDivElement;
+const connectBtn = document.getElementById("btn-connect") as HTMLButtonElement;
+const disconnectBtn = document.getElementById(
+  "btn-disconnect",
+) as HTMLButtonElement;
+const sendBtn = document.getElementById("btn-send") as HTMLButtonElement;
+const sendInput = document.getElementById("input-send") as HTMLInputElement;
+const modeToggle = document.getElementById("mode-toggle") as HTMLButtonElement;
 
 let sendMode: "text" | "hex" = "text";
 
@@ -181,18 +189,18 @@ arduino.on("serial:connecting", () => {
 
 arduino.on("serial:connected", () => {
   log("✅ Connected via Web Bluetooth!", "event");
-  connectBtn.disabled    = true;
+  connectBtn.disabled = true;
   disconnectBtn.disabled = false;
-  sendBtn.disabled       = false;
-  sendInput.disabled     = false;
+  sendBtn.disabled = false;
+  sendInput.disabled = false;
 });
 
 arduino.on("serial:disconnected", () => {
   log("🔌 Disconnected.", "event");
-  connectBtn.disabled    = false;
+  connectBtn.disabled = false;
   disconnectBtn.disabled = true;
-  sendBtn.disabled       = true;
-  sendInput.disabled     = true;
+  sendBtn.disabled = true;
+  sendInput.disabled = true;
 });
 
 arduino.on("serial:data", (data) => {
@@ -238,7 +246,7 @@ disconnectBtn.addEventListener("click", async () => {
 modeToggle.addEventListener("click", () => {
   sendMode = sendMode === "text" ? "hex" : "text";
   modeToggle.textContent = sendMode === "text" ? "TXT" : "HEX";
-  sendInput.placeholder  =
+  sendInput.placeholder =
     sendMode === "text"
       ? "Type a command, e.g. HI"
       : "Hex bytes, e.g. FF 01 A3";
@@ -258,7 +266,10 @@ sendBtn.addEventListener("click", async () => {
       await arduino.send(value + "\n");
     }
   } catch (err) {
-    log(`Send error: ${err instanceof Error ? err.message : String(err)}`, "error");
+    log(
+      `Send error: ${err instanceof Error ? err.message : String(err)}`,
+      "error",
+    );
   }
   sendInput.value = "";
   sendInput.focus();

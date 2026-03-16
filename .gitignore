@@ -17,8 +17,26 @@ dist-ssr
 !.vscode/extensions.json
 .idea
 .DS_Store
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+
+# VitePress build output
+docs/.vitepress/dist
+docs/.vitepress/cache
+
+# npm pack
+*.tgz

@@ -1,19 +1,58 @@
-import { SerialEventEmitter } from "./SerialEventEmitter";
-import { SerialRegistry } from "./SerialRegistry";
-import { CommandQueue } from "../queue/CommandQueue";
+/**
+ * @file AbstractSerialDevice.ts
+ *
+ * Core abstract base class for all serial device implementations in
+ * `webserial-core`. Provides lifecycle management including port selection,
+ * handshake validation, typed event-driven streaming, command queue,
+ * auto-reconnection, and port locking via {@link SerialRegistry}.
+ *
+ * @example
+ * ```ts
+ * import { AbstractSerialDevice, delimiter } from 'webserial-core';
+ *
+ * class ArduinoDevice extends AbstractSerialDevice<string> {
+ *   constructor() {
+ *     super({ baudRate: 9600, parser: delimiter('\n') });
+ *   }
+ *   protected async handshake(): Promise<boolean> {
+ *     await this.send('PING\n');
+ *     return new Promise((resolve) => {
+ *       const handler = (line: string) => {
+ *         this.off('serial:data', handler);
+ *         resolve(line.trim() === 'PONG');
+ *       };
+ *       this.on('serial:data', handler);
+ *     });
+ *   }
+ * }
+ * ```
+ */
+
+import { SerialEventEmitter } from "./SerialEventEmitter.js";
+import { SerialRegistry } from "./SerialRegistry.js";
+import { CommandQueue } from "../queue/CommandQueue.js";
 import {
   SerialPermissionError,
   SerialReadError,
   SerialWriteError,
-} from "../errors/index";
+} from "../errors/index.js";
 import type {
   SerialDeviceOptions,
   SerialPolyfillOptions,
   SerialProvider,
-} from "../types/index";
+} from "../types/index.js";
 
+/**
+ * Abstract base class for all serial devices.
+ *
+ * @typeParam T - Type of parsed data emitted by `"serial:data"` events.
+ *   Use `string` with a delimiter parser, `Uint8Array` for raw/fixed-length,
+ *   or any custom type with a custom parser.
+ */
 export abstract class AbstractSerialDevice<T> extends SerialEventEmitter<T> {
+  /** The currently open serial port, or `null` when disconnected. */
   protected port: SerialPort | null = null;
+
   private reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   private writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
 

@@ -1,5 +1,5 @@
 import { AbstractSerialDevice, delimiter } from "../src/index";
-import { WebUsbProvider } from "../src/providers/WebUsbProvider";
+import { WebUsbProvider } from "../src/adapters/web-usb/WebUsbProvider";
 import type { SerialPortFilter } from "../src/types";
 
 // ─── Force WebUSB polyfill even on desktop Chrome ──────────────

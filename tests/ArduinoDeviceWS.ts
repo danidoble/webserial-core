@@ -32,7 +32,7 @@ function waitForMessage<T>(ws: WebSocket, expectedType: string): Promise<T> {
 function createWsSerialPort(ws: WebSocket, info: PortInfo): SerialPort {
   let readable: ReadableStream<Uint8Array> | null = null;
   let writable: WritableStream<Uint8Array> | null = null;
- 
+
   return {
     get readable() {
       return readable;
@@ -40,14 +40,14 @@ function createWsSerialPort(ws: WebSocket, info: PortInfo): SerialPort {
     get writable() {
       return writable;
     },
- 
+
     getInfo() {
       return {
         usbVendorId: info.vendorId,
         usbProductId: info.productId,
       };
     },
- 
+
     async open(options) {
       ws.send(
         JSON.stringify({
@@ -65,23 +65,24 @@ function createWsSerialPort(ws: WebSocket, info: PortInfo): SerialPort {
           parser: { type: "delimiter", value: "\\n" },
         }),
       );
- 
+
       await waitForMessage(ws, "opened");
- 
+
       // ── Buffer interno ──────────────────────────────────────────────────
       // Acumula tramas que llegan por WS antes de que ReadableStream
       // tenga un reader activo. readLoop() las drena al hacer reader.read().
       const pendingChunks: Uint8Array[] = [];
-      let streamController: ReadableStreamDefaultController<Uint8Array> | null = null;
+      let streamController: ReadableStreamDefaultController<Uint8Array> | null =
+        null;
       let streamClosed = false;
- 
+
       // Listener único para todos los mensajes del WS durante esta conexión
       function onMessage(event: MessageEvent) {
         const msg = JSON.parse(event.data as string);
- 
+
         if (msg.type === "data") {
           const chunk = new Uint8Array(msg.bytes);
- 
+
           if (streamController) {
             // El ReadableStream ya tiene un reader — entregar directo
             streamController.enqueue(chunk);
@@ -90,7 +91,7 @@ function createWsSerialPort(ws: WebSocket, info: PortInfo): SerialPort {
             pendingChunks.push(chunk);
           }
         }
- 
+
         if (msg.type === "closed") {
           streamClosed = true;
           if (streamController) {
@@ -98,26 +99,26 @@ function createWsSerialPort(ws: WebSocket, info: PortInfo): SerialPort {
           }
         }
       }
- 
+
       ws.addEventListener("message", onMessage);
- 
+
       // ── ReadableStream ──────────────────────────────────────────────────
       readable = new ReadableStream<Uint8Array>({
         start(controller) {
           streamController = controller;
- 
+
           // Drenar el buffer acumulado antes de que hubiera reader
           for (const chunk of pendingChunks) {
             controller.enqueue(chunk);
           }
           pendingChunks.length = 0;
- 
+
           // Si el puerto ya se cerró mientras esperábamos al reader
           if (streamClosed) {
             controller.close();
           }
         },
- 
+
         cancel() {
           // Cleanup: remover el listener cuando la clase abstracta
           // cancela el reader (disconnect / reconnect / teardown)
@@ -125,7 +126,7 @@ function createWsSerialPort(ws: WebSocket, info: PortInfo): SerialPort {
           streamController = null;
         },
       });
- 
+
       // ── WritableStream ──────────────────────────────────────────────────
       writable = new WritableStream<Uint8Array>({
         write(chunk) {
@@ -138,7 +139,7 @@ function createWsSerialPort(ws: WebSocket, info: PortInfo): SerialPort {
         },
       });
     },
- 
+
     async close() {
       ws.send(JSON.stringify({ type: "close" }));
       readable = null;

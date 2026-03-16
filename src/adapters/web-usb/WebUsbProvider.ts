@@ -1,27 +1,26 @@
 /**
+ * @file WebUsbProvider.ts
+ *
  * WebUSB Serial Provider — a drop-in replacement for `web-serial-polyfill`
  * that properly supports vendor-specific USB devices (class 255).
  *
  * The Google polyfill **always** sends CDC ACM commands (SetLineCoding,
- * SetControlLineState) during `open()`. Devices that don't implement
+ * SetControlLineState) during `open()`. Devices that do not implement
  * CDC ACM reject those commands, causing `open()` to fail.
  *
  * This provider supports multiple protocols:
- * - **CDC ACM** — standard USB serial (class 2).
+ * - **CDC ACM** — standard USB serial (interface class 2).
  * - **CP210x** — Silicon Labs CP2102 / CP2104 vendor protocol.
- * - **none** — skip all init (just open + claim).
+ * - **none** — skip all initialization (just open + claim interfaces).
  *
  * @example
  * ```ts
  * import { WebUsbProvider, AbstractSerialDevice } from 'webserial-core';
  *
- * // CP210x on Android (auto-detected by vendorId)
- * AbstractSerialDevice.setProvider(new WebUsbProvider({
- *   usbControlInterfaceClass: 255,
- *   usbTransferInterfaceClass: 255,
- * }));
+ * // Auto-detect protocol from vendorId / interface class
+ * AbstractSerialDevice.setProvider(new WebUsbProvider());
  *
- * // Explicit protocol
+ * // CP210x (explicit protocol)
  * AbstractSerialDevice.setProvider(new WebUsbProvider({
  *   usbControlInterfaceClass: 255,
  *   usbTransferInterfaceClass: 255,
@@ -34,9 +33,9 @@ import type {
   SerialPolyfillOptions,
   SerialPortFilter,
   SerialProvider,
-} from "../types/index";
+} from "../../types/index.js";
 
-// ─── WebUSB type declarations (not shipped by default) ─────────
+// ─── WebUSB type declarations ───────────────────────────────────────────────
 
 interface USBDeviceFilter {
   vendorId?: number;
@@ -131,11 +130,11 @@ declare global {
   }
 }
 
-// ─── CDC ACM protocol constants ────────────────────────────────
+// ─── CDC ACM protocol constants ─────────────────────────────────────────────
 const kCdcSetLineCoding = 0x20;
 const kCdcSetControlLineState = 0x22;
 
-// ─── CP210x protocol constants (Silicon Labs) ──────────────────
+// ─── CP210x protocol constants (Silicon Labs) ────────────────────────────────
 const kCp210xIfcEnable = 0x00;
 const kCp210xSetBaudrate = 0x1e;
 const kCp210xSetLineCtl = 0x03;
@@ -144,12 +143,12 @@ const kCp210xSetMhs = 0x07;
 const kCp210xUartEnable = 0x0001;
 const kCp210xUartDisable = 0x0000;
 
-// DTR=1, RTS=1, change both
+/** DTR=1, RTS=1, change both */
 const kCp210xDtrRtsOn = 0x0303;
-// DTR=0, RTS=0, change both
+/** DTR=0, RTS=0, change both */
 const kCp210xDtrRtsOff = 0x0300;
 
-// ─── Shared constants ──────────────────────────────────────────
+// ─── Shared defaults ─────────────────────────────────────────────────────────
 const kDefaultBufferSize = 255;
 const kDefaultDataBits = 8;
 const kDefaultParity = "none";
@@ -171,15 +170,24 @@ const kDefaultOptions = {
   protocol: undefined as "cdc_acm" | "cp210x" | "none" | undefined,
 };
 
-// ─── Helpers ───────────────────────────────────────────────────
+// ─── Helper functions ────────────────────────────────────────────────────────
 
+/**
+ * Returns the first interface on the device whose primary alternate setting
+ * has the given class code.
+ *
+ * @param device - The USB device to search.
+ * @param classCode - The USB interface class to match.
+ * @returns The matching interface, or `null` if not found.
+ */
 function findInterfaceByClass(
   device: USBDevice,
   classCode: number,
 ): USBInterface | null {
   const config = device.configurations[0];
+  if (!config) return null;
   for (const iface of config.interfaces) {
-    if (iface.alternates[0].interfaceClass === classCode) {
+    if (iface.alternates[0]?.interfaceClass === classCode) {
       return iface;
     }
   }
@@ -187,35 +195,46 @@ function findInterfaceByClass(
 }
 
 /**
- * Find the first interface with the given class that also has
- * both IN and OUT endpoints (i.e. a data interface).
+ * Returns the first interface with the given class that also has both
+ * IN and OUT bulk/interrupt endpoints (i.e. a bidirectional data interface).
+ *
+ * @param device - The USB device to search.
+ * @param classCode - The USB interface class to match.
+ * @returns The matching data interface, or `null` if not found.
  */
 function findDataInterface(
   device: USBDevice,
   classCode: number,
 ): USBInterface | null {
   const config = device.configurations[0];
+  if (!config) return null;
   for (const iface of config.interfaces) {
     const alt = iface.alternates[0];
-    if (alt.interfaceClass !== classCode) continue;
-    const hasIn = alt.endpoints.some(
-      (ep: USBEndpoint) => ep.direction === "in",
-    );
-    const hasOut = alt.endpoints.some(
-      (ep: USBEndpoint) => ep.direction === "out",
-    );
+    if (!alt || alt.interfaceClass !== classCode) continue;
+    const hasIn = alt.endpoints.some((ep) => ep.direction === "in");
+    const hasOut = alt.endpoints.some((ep) => ep.direction === "out");
     if (hasIn && hasOut) return iface;
   }
   return null;
 }
 
+/**
+ * Returns the first endpoint on an interface that matches the given direction.
+ *
+ * @param iface - The USB interface to search.
+ * @param direction - The endpoint direction (`"in"` or `"out"`).
+ * @returns The matching endpoint.
+ * @throws {TypeError} If no matching endpoint is found.
+ */
 function findEndpoint(
   iface: USBInterface,
   direction: "in" | "out",
 ): USBEndpoint {
   const alt = iface.alternates[0];
-  for (const ep of alt.endpoints) {
-    if (ep.direction === direction) return ep;
+  if (alt) {
+    for (const ep of alt.endpoints) {
+      if (ep.direction === direction) return ep;
+    }
   }
   throw new TypeError(
     `Interface ${iface.interfaceNumber} does not have an ${direction} endpoint.`,
@@ -223,25 +242,35 @@ function findEndpoint(
 }
 
 /**
- * Auto-detect the USB-to-serial protocol when the user hasn't
+ * Auto-detects the USB-to-serial protocol when the user has not
  * explicitly specified one.
+ *
+ * - Interface class 2 → `cdc_acm`
+ * - Silicon Labs vendorId `0x10c4` → `cp210x`
+ * - Otherwise → `none`
+ *
+ * @param device - The USB device.
+ * @param controlClass - The resolved control interface class.
+ * @returns The detected protocol.
  */
 function detectProtocol(
   device: USBDevice,
   controlClass: number,
 ): ResolvedProtocol {
   if (controlClass === 2) return "cdc_acm";
-  // Silicon Labs CP2102 / CP2104 / CP2105
   if (device.vendorId === 0x10c4) return "cp210x";
   return "none";
 }
 
-// ─── Underlying Source / Sink for streams ──────────────────────
+// ─── UnderlyingSource / UnderlyingSink for ReadableStream / WritableStream ───
 
+/**
+ * ReadableStream source that reads bulk data from a USB IN endpoint.
+ */
 class UsbEndpointUnderlyingSource implements UnderlyingDefaultSource<Uint8Array> {
-  private device_: USBDevice;
-  private endpoint_: USBEndpoint;
-  private onError_: () => void;
+  private readonly device_: USBDevice;
+  private readonly endpoint_: USBEndpoint;
+  private readonly onError_: () => void;
 
   constructor(device: USBDevice, endpoint: USBEndpoint, onError: () => void) {
     this.device_ = device;
@@ -280,10 +309,13 @@ class UsbEndpointUnderlyingSource implements UnderlyingDefaultSource<Uint8Array>
   }
 }
 
+/**
+ * WritableStream sink that writes bulk data to a USB OUT endpoint.
+ */
 class UsbEndpointUnderlyingSink implements UnderlyingSink<Uint8Array> {
-  private device_: USBDevice;
-  private endpoint_: USBEndpoint;
-  private onError_: () => void;
+  private readonly device_: USBDevice;
+  private readonly endpoint_: USBEndpoint;
+  private readonly onError_: () => void;
 
   constructor(device: USBDevice, endpoint: USBEndpoint, onError: () => void) {
     this.device_ = device;
@@ -311,7 +343,7 @@ class UsbEndpointUnderlyingSink implements UnderlyingSink<Uint8Array> {
   }
 }
 
-// ─── WebUsbSerialPort ──────────────────────────────────────────
+// ─── WebUsbSerialPort ────────────────────────────────────────────────────────
 
 interface OutputSignals {
   dataTerminalReady?: boolean;
@@ -322,16 +354,17 @@ interface OutputSignals {
 /**
  * A `SerialPort`-compatible class backed by a WebUSB device.
  *
- * Supports CDC ACM, CP210x, and raw (no-init) protocols.
+ * Supports CDC ACM, CP210x, and raw (no-init) protocols depending on the
+ * USB device and the options provided to the constructor.
  */
 class WebUsbSerialPort {
-  private device_: USBDevice;
-  private protocol_: ResolvedProtocol;
+  private readonly device_: USBDevice;
+  private readonly protocol_: ResolvedProtocol;
 
-  private controlInterface_: USBInterface;
-  private transferInterface_: USBInterface;
-  private inEndpoint_: USBEndpoint;
-  private outEndpoint_: USBEndpoint;
+  private readonly controlInterface_: USBInterface;
+  private readonly transferInterface_: USBInterface;
+  private readonly inEndpoint_: USBEndpoint;
+  private readonly outEndpoint_: USBEndpoint;
 
   private serialOptions_!: SerialOptions;
   private readable_: ReadableStream<Uint8Array> | null = null;
@@ -342,15 +375,18 @@ class WebUsbSerialPort {
     break: false,
   };
 
+  /**
+   * @param device - The underlying WebUSB device.
+   * @param options - Optional polyfill options to control interface class and protocol.
+   * @throws {TypeError} If the required interfaces or endpoints cannot be found.
+   */
   constructor(device: USBDevice, options?: SerialPolyfillOptions) {
     this.device_ = device;
     const opts = { ...kDefaultOptions, ...options };
 
-    // Resolve protocol
     this.protocol_ =
       opts.protocol ?? detectProtocol(device, opts.usbControlInterfaceClass);
 
-    // ── Discover interfaces ────────────────────────────────────
     const controlClass = opts.usbControlInterfaceClass;
     const transferClass = opts.usbTransferInterfaceClass;
 
@@ -358,8 +394,7 @@ class WebUsbSerialPort {
       const dataIface = findDataInterface(device, transferClass);
       if (!dataIface) {
         throw new TypeError(
-          `Unable to find interface with class ${transferClass} that has ` +
-            `both IN and OUT endpoints.`,
+          `Unable to find interface with class ${transferClass} that has both IN and OUT endpoints.`,
         );
       }
       this.controlInterface_ = dataIface;
@@ -387,8 +422,9 @@ class WebUsbSerialPort {
     this.outEndpoint_ = findEndpoint(this.transferInterface_, "out");
   }
 
-  // ── Streams ──────────────────────────────────────────────────
+  // ── Stream accessors ─────────────────────────────────────────────────────
 
+  /** The readable byte stream. Only available after `open()`. */
   get readable(): ReadableStream<Uint8Array> | null {
     if (!this.readable_ && this.device_.opened) {
       this.readable_ = new ReadableStream<Uint8Array>(
@@ -403,6 +439,7 @@ class WebUsbSerialPort {
     return this.readable_;
   }
 
+  /** The writable byte stream. Only available after `open()`. */
   get writable(): WritableStream<Uint8Array> | null {
     if (!this.writable_ && this.device_.opened) {
       this.writable_ = new WritableStream(
@@ -417,8 +454,15 @@ class WebUsbSerialPort {
     return this.writable_;
   }
 
-  // ── Lifecycle ────────────────────────────────────────────────
+  // ── Lifecycle ────────────────────────────────────────────────────────────
 
+  /**
+   * Opens the USB device, claims the required interfaces, and performs
+   * any protocol-specific initialization.
+   *
+   * @param options - Serial port options (baud rate, data bits, parity, etc.).
+   * @throws {Error} If the device fails to open or initialize.
+   */
   async open(options: SerialOptions): Promise<void> {
     this.serialOptions_ = options;
     this.validateOptions();
@@ -436,7 +480,6 @@ class WebUsbSerialPort {
         );
       }
 
-      // Protocol-specific initialization
       switch (this.protocol_) {
         case "cdc_acm":
           await this.cdcInit();
@@ -445,7 +488,7 @@ class WebUsbSerialPort {
           await this.cp210xInit();
           break;
         case "none":
-          // No init needed
+          // No initialization required for raw bulk transfer
           break;
       }
     } catch (error) {
@@ -460,6 +503,9 @@ class WebUsbSerialPort {
     }
   }
 
+  /**
+   * Closes the USB device and tears down the streams.
+   */
   async close(): Promise<void> {
     const promises: Promise<void>[] = [];
     if (this.readable_) promises.push(this.readable_.cancel());
@@ -484,10 +530,18 @@ class WebUsbSerialPort {
     }
   }
 
+  /**
+   * Revokes the browser's permission to access this USB device.
+   */
   async forget(): Promise<void> {
     return this.device_.forget();
   }
 
+  /**
+   * Returns identifying information about the port.
+   *
+   * @returns An object containing `usbVendorId` and `usbProductId`.
+   */
   getInfo(): SerialPortInfo {
     return {
       usbVendorId: this.device_.vendorId,
@@ -495,7 +549,7 @@ class WebUsbSerialPort {
     };
   }
 
-  // ── CDC ACM protocol ─────────────────────────────────────────
+  // ── CDC ACM protocol ──────────────────────────────────────────────────────
 
   private async cdcInit(): Promise<void> {
     await this.cdcSetLineCoding();
@@ -517,7 +571,7 @@ class WebUsbSerialPort {
         requestType: "class",
         recipient: "interface",
         request: kCdcSetControlLineState,
-        value: value,
+        value,
         index: this.controlInterface_.interfaceNumber,
       });
     }
@@ -556,10 +610,9 @@ class WebUsbSerialPort {
     }
   }
 
-  // ── CP210x protocol (Silicon Labs) ───────────────────────────
-  //
-  // Based on the Linux cp210x driver and the usb-serial-for-android
-  // library.  Request type 0x41 = vendor + host-to-interface.
+  // ── CP210x protocol (Silicon Labs) ───────────────────────────────────────
+  // Based on the Linux cp210x kernel driver and the usb-serial-for-android library.
+  // Request type 0x41 = vendor + host-to-interface.
 
   private async cp210xInit(): Promise<void> {
     const ifNum = this.controlInterface_.interfaceNumber;
@@ -573,7 +626,7 @@ class WebUsbSerialPort {
       index: ifNum,
     });
 
-    // 2. Set baud rate (4-byte LE uint32 in data phase)
+    // 2. Set baud rate (4-byte little-endian uint32 in data phase)
     const baudBuf = new ArrayBuffer(4);
     new DataView(baudBuf).setUint32(0, this.serialOptions_.baudRate, true);
     await this.device_.controlTransferOut(
@@ -587,11 +640,11 @@ class WebUsbSerialPort {
       baudBuf,
     );
 
-    // 3. Set line control  (data bits | parity | stop bits)
+    // 3. Set line control (data bits | parity | stop bits)
     //    Encoding (wValue):
-    //      bits 15-8 : stop bits  →  0x0000 = 1,  0x0002 = 2
-    //      bits  7-4 : parity     →  0x00 = none, 0x10 = odd, 0x20 = even
-    //      bits  3-0 : data bits  →  0x05 .. 0x08
+    //      bits 15-8 : stop bits  → 0x0000 = 1, 0x0002 = 2
+    //      bits  7-4 : parity     → 0x00 = none, 0x10 = odd, 0x20 = even
+    //      bits  3-0 : data bits  → 0x05 .. 0x08
     const dataBits = this.serialOptions_.dataBits ?? kDefaultDataBits;
     const parityMap: Record<string, number> = {
       none: 0x00,
@@ -603,7 +656,6 @@ class WebUsbSerialPort {
     const stopMap: Record<number, number> = { 1: 0x0000, 2: 0x0002 };
     const stop =
       stopMap[this.serialOptions_.stopBits ?? kDefaultStopBits] ?? 0x0000;
-    // data bits and parity fit in the low byte; stop bits in the high byte
     const lineCtl = (stop << 8) | parity | dataBits;
 
     await this.device_.controlTransferOut({
@@ -646,71 +698,79 @@ class WebUsbSerialPort {
     });
   }
 
-  // ── Validation ───────────────────────────────────────────────
+  // ── Validation ────────────────────────────────────────────────────────────
 
   private validateOptions(): void {
     if (this.serialOptions_.baudRate % 1 !== 0) {
-      throw new RangeError("invalid Baud Rate " + this.serialOptions_.baudRate);
+      throw new RangeError(
+        `Invalid baud rate: ${this.serialOptions_.baudRate}`,
+      );
     }
     if (
       this.serialOptions_.dataBits !== undefined &&
       !kAcceptableDataBits.includes(this.serialOptions_.dataBits)
     ) {
-      throw new RangeError("invalid dataBits " + this.serialOptions_.dataBits);
+      throw new RangeError(`Invalid dataBits: ${this.serialOptions_.dataBits}`);
     }
     if (
       this.serialOptions_.stopBits !== undefined &&
       !kAcceptableStopBits.includes(this.serialOptions_.stopBits)
     ) {
-      throw new RangeError("invalid stopBits " + this.serialOptions_.stopBits);
+      throw new RangeError(`Invalid stopBits: ${this.serialOptions_.stopBits}`);
     }
     if (
       this.serialOptions_.parity !== undefined &&
       !kAcceptableParity.includes(this.serialOptions_.parity)
     ) {
-      throw new RangeError("invalid parity " + this.serialOptions_.parity);
+      throw new RangeError(`Invalid parity: ${this.serialOptions_.parity}`);
     }
   }
 }
 
-// ─── WebUsbProvider (implements SerialProvider) ─────────────────
+// ─── WebUsbProvider ──────────────────────────────────────────────────────────
 
 /**
- * A `SerialProvider` that uses the WebUSB API under the hood.
+ * A {@link SerialProvider} implementation that uses the WebUSB API.
  *
- * Supported protocols:
- * - `cdc_acm` — standard CDC ACM (auto-detected for class 2).
- * - `cp210x`  — Silicon Labs CP2102/CP2104 (auto-detected for vendorId 0x10c4).
- * - `none`    — raw bulk transfer, no init commands.
+ * Supported protocols (auto-detected unless overridden via `protocol`):
+ * - `cdc_acm`  — Standard CDC ACM (auto-detected for interface class 2).
+ * - `cp210x`   — Silicon Labs CP2102/CP2104 (auto-detected for vendorId `0x10c4`).
+ * - `none`     — Raw bulk transfer, no initialization commands sent.
  *
  * @example
  * ```ts
  * import { WebUsbProvider, AbstractSerialDevice } from 'webserial-core';
  *
- * // Standard CDC ACM device
+ * // Standard CDC ACM device (class 2, auto-detected)
  * AbstractSerialDevice.setProvider(new WebUsbProvider());
  *
- * // Silicon Labs CP210x (auto-detected)
+ * // Vendor-specific device with CP210x (e.g. ESP32 with CP2102)
  * AbstractSerialDevice.setProvider(new WebUsbProvider({
  *   usbControlInterfaceClass: 255,
  *   usbTransferInterfaceClass: 255,
- * }));
- *
- * // Explicit protocol override
- * AbstractSerialDevice.setProvider(new WebUsbProvider({
- *   usbControlInterfaceClass: 255,
- *   usbTransferInterfaceClass: 255,
- *   protocol: 'cp210x',
  * }));
  * ```
  */
 export class WebUsbProvider implements SerialProvider {
-  private options_: typeof kDefaultOptions;
+  private readonly options_: typeof kDefaultOptions;
 
+  /**
+   * @param options - Optional USB interface class and protocol settings.
+   *   Defaults to CDC ACM (interface class 2).
+   */
   constructor(options?: SerialPolyfillOptions) {
     this.options_ = { ...kDefaultOptions, ...options };
   }
 
+  /**
+   * Prompts the user to select a USB device and returns a `SerialPort`-
+   * compatible wrapper for it.
+   *
+   * @param options - Optional filter list to narrow the USB device picker.
+   * @param polyfillOptions - Per-request override of polyfill settings.
+   * @returns A `SerialPort`-compatible object backed by the selected USB device.
+   * @throws {DOMException} If the user cancels the device picker.
+   */
   async requestPort(
     options?: { filters?: SerialPortFilter[] },
     polyfillOptions?: SerialPolyfillOptions,
@@ -728,8 +788,8 @@ export class WebUsbProvider implements SerialProvider {
           usbFilter.productId = filter.usbProductId;
         }
 
-        // Only enforce classCode if we are specifically looking for a class,
-        // OR if no vendor/product ID was specified
+        // Only enforce classCode for standard CDC devices.
+        // For vendor-specific (class 255), rely on vendorId/productId only.
         if (
           opts.usbControlInterfaceClass !== undefined &&
           opts.usbControlInterfaceClass !== 255
@@ -745,7 +805,6 @@ export class WebUsbProvider implements SerialProvider {
         usbFilters.push(usbFilter);
       }
     } else {
-      // If no filters are provided, default to the control interface class or class 2 (CDC)
       usbFilters.push({ classCode: opts.usbControlInterfaceClass ?? 2 });
     }
 
@@ -753,6 +812,13 @@ export class WebUsbProvider implements SerialProvider {
     return new WebUsbSerialPort(device, opts) as unknown as SerialPort;
   }
 
+  /**
+   * Returns `SerialPort`-compatible wrappers for all previously granted
+   * USB devices.
+   *
+   * @param polyfillOptions - Per-request override of polyfill settings.
+   * @returns An array of `SerialPort`-compatible objects.
+   */
   async getPorts(
     polyfillOptions?: SerialPolyfillOptions,
   ): Promise<SerialPort[]> {
@@ -765,7 +831,7 @@ export class WebUsbProvider implements SerialProvider {
         const port = new WebUsbSerialPort(device, opts);
         ports.push(port as unknown as SerialPort);
       } catch {
-        // Skip devices whose interfaces don't match
+        // Skip devices whose interfaces do not match the configured classes
       }
     }
     return ports;

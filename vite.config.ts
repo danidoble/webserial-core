@@ -7,11 +7,18 @@ export default defineConfig({
     lib: {
       entry: resolve(__dirname, "src/index.ts"),
       name: "WebSerialCore",
+      // Produce ESM (.mjs), CJS (.cjs), and UMD (.umd.cjs) builds.
+      // ESM  → tree-shakeable, for bundlers and modern browsers.
+      // CJS  → for Node.js environments (e.g. server-side bridge code).
+      // UMD  → standalone script tag for demos and CDN usage.
       formats: ["es", "cjs", "umd"],
-      fileName: "webserial-core",
+      fileName: (format) => {
+        if (format === "es") return "webserial-core.mjs";
+        if (format === "cjs") return "webserial-core.cjs";
+        return "webserial-core.umd.cjs";
+      },
     },
     rollupOptions: {
-      // Ensure we don't bundle external dependencies if we had any
       external: [],
       output: {
         globals: {},
@@ -20,14 +27,13 @@ export default defineConfig({
   },
   plugins: [
     dts({
+      // Emit a single bundled declaration file at dist/index.d.ts
       insertTypesEntry: true,
       include: ["src/**/*.ts"],
+      exclude: ["src/**/*.test.ts"],
     }),
   ],
   server: {
-    allowedHosts: [
-      "localhost",
-      "predict-wellington-places-friendly.trycloudflare.com",
-    ],
+    allowedHosts: ["localhost"],
   },
 });

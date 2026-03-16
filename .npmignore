@@ -1,0 +1,39 @@
+# Files and directories NOT published to npm.
+# Only dist/ (the compiled output) is published.
+
+# Source code
+src/
+tests/
+demos/
+docs/
+
+# Configuration files
+*.config.ts
+*.config.js
+tsconfig*.json
+eslint.config.*
+.prettier*
+.editorconfig
+.eslintignore
+
+# Development HTML entry points (root level)
+index.html
+ble.html
+usb.html
+ws.html
+
+# Scripts
+scripts/
+
+# CI / GitHub
+.github/
+
+# Editor
+.vscode/
+.idea/
+
+# Misc
+*.log
+*.tgz
+.DS_Store
+Thumbs.db

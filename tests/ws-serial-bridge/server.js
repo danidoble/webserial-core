@@ -51,7 +51,8 @@ function createParser(parserConfig) {
 
   if (parserConfig.type === "fixed") {
     const length = parserConfig.length;
-    if (!length || length < 1) throw new Error("fixed parser requiere length >= 1");
+    if (!length || length < 1)
+      throw new Error("fixed parser requiere length >= 1");
     return new ByteLengthParser({ length });
   }
 
@@ -119,7 +120,10 @@ async function handleConnection(ws) {
           vendorId: p.vendorId ? parseInt(p.vendorId, 16) : undefined,
           productId: p.productId ? parseInt(p.productId, 16) : undefined,
         }));
-        log("SERIAL", `Puertos disponibles: ${payload.map((p) => p.path).join(", ") || "ninguno"}`);
+        log(
+          "SERIAL",
+          `Puertos disponibles: ${payload.map((p) => p.path).join(", ") || "ninguno"}`,
+        );
         send(ws, "port-list", payload);
       } catch (err) {
         log("ERROR", `list-ports: ${err.message}`);
@@ -241,7 +245,7 @@ const wss = new WebSocketServer({ port: WS_PORT });
 
 wss.on("listening", () => {
   log("SERVER", `ws-serial-bridge escuchando en ws://localhost:${WS_PORT}`);
-  log("SERVER", 'Esperando conexiones del browser...');
+  log("SERVER", "Esperando conexiones del browser...");
 });
 
 wss.on("connection", handleConnection);

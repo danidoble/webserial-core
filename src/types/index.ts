@@ -1,4 +1,12 @@
-import type { AbstractSerialDevice } from "../core/AbstractSerialDevice";
+/**
+ * @file types/index.ts
+ *
+ * All public TypeScript types, interfaces, and ambient declarations for
+ * `webserial-core`. Import these in consuming code for full type safety
+ * and IDE autocomplete.
+ */
+
+import type { AbstractSerialDevice } from "../core/AbstractSerialDevice.js";
 
 declare global {
   interface SerialPortInfo {
