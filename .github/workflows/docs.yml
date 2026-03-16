@@ -60,7 +60,7 @@ jobs:
           ALGOLIA_APP_ID: ${{ secrets.ALGOLIA_APP_ID }}
           ALGOLIA_WRITE_API_KEY: ${{ secrets.ALGOLIA_WRITE_API_KEY }}
           ALGOLIA_INDEX_NAME: ${{ secrets.ALGOLIA_INDEX_NAME }}
-          DOCS_BASE: /webserial-core/
+          DOCS_BASE: ${{ secrets.DOCS_BASE }}
 
       - uses: actions/configure-pages@v5
 

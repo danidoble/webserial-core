@@ -26,7 +26,7 @@ features:
 ---
 
 ::: warning Legacy version
-You are viewing the **v1 legacy documentation**. v1 is no longer actively maintained.
+You are viewing the **v1 legacy documentation**. v1 is now on Security fixes only.
 
 For new projects, use [v2 (latest)](/guide/getting-started) which adds:
 

@@ -6,13 +6,13 @@ title: Getting Started (v1)
 # Getting Started — v1
 
 ::: warning You are viewing legacy v1 docs
-v1 is no longer actively maintained. For new projects please use [v2 (latest)](/guide/getting-started).
+v1 is on Security fixes only. For new projects please use [v2 (latest)](/guide/getting-started).
 :::
 
 ## Installation
 
 ```bash
-npm install webserial-core@1
+npm install webserial-core@v1.x.x
 ```
 
 ## Basic usage
