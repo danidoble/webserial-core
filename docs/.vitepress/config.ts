@@ -35,6 +35,13 @@ function buildSearch(): DefaultTheme.Config["search"] {
         appId: ALGOLIA_APP_ID,
         apiKey: ALGOLIA_API_KEY,
         indexName: ALGOLIA_INDEX_NAME,
+        searchParameters: {
+          facetFilters: [],
+        },
+        // askAi: {
+        //   assistantId: 'askAIDemo',
+        //   suggestedQuestions: true,
+        // },
       },
     };
   }
