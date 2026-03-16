@@ -138,12 +138,12 @@ interface CommandQueueOptions {
 
 ## Clases de error
 
-| Clase                     | Cuándo se lanza                                         |
-| ------------------------- | ------------------------------------------------------- |
-| `SerialPortConflictError` | Dos dispositivos intentan abrir el mismo puerto         |
-| `SerialPermissionError`   | El usuario deniega el acceso al puerto                  |
-| `SerialTimeoutError`      | Se superó `commandTimeout` para un comando en cola      |
-| `SerialReadError`         | Error al leer del `ReadableStream` del puerto           |
-| `SerialWriteError`        | Error al escribir en el `WritableStream` del puerto     |
+| Clase                     | Cuándo se lanza                                     |
+| ------------------------- | --------------------------------------------------- |
+| `SerialPortConflictError` | Dos dispositivos intentan abrir el mismo puerto     |
+| `SerialPermissionError`   | El usuario deniega el acceso al puerto              |
+| `SerialTimeoutError`      | Se superó `commandTimeout` para un comando en cola  |
+| `SerialReadError`         | Error al leer del `ReadableStream` del puerto       |
+| `SerialWriteError`        | Error al escribir en el `WritableStream` del puerto |
 
 Todas extienden la clase `Error` integrada e incluyen `name` y `message`.

@@ -2,11 +2,11 @@
 
 ## Requisitos
 
-| Requisito  | Versión                               |
-| ---------- | ------------------------------------- |
-| Node.js    | ≥ 18                                  |
-| TypeScript | ≥ 5.0                                 |
-| Navegador  | Chrome 89+ / Edge 89+ (Web Serial)    |
+| Requisito  | Versión                            |
+| ---------- | ---------------------------------- |
+| Node.js    | ≥ 18                               |
+| TypeScript | ≥ 5.0                              |
+| Navegador  | Chrome 89+ / Edge 89+ (Web Serial) |
 
 > **Nota:** Web Serial requiere un contexto seguro (HTTPS o `localhost`) y
 > un navegador basado en Chromium. WebUSB y Web Bluetooth tienen requisitos similares.
@@ -100,18 +100,18 @@ Todas las opciones se pasan en la llamada `super()` del constructor:
 
 ```ts
 super({
-  baudRate: 9600,           // Velocidad en baudios
-  dataBits: 8,              // 7 u 8
-  stopBits: 1,              // 1 o 2
-  parity: "none",           // "none" | "even" | "odd"
-  flowControl: "none",      // "none" | "hardware"
-  bufferSize: 255,          // Tamaño del buffer de lectura (bytes)
-  parser: delimiter("\n"),  // Cómo dividir los bytes entrantes en mensajes
-  commandTimeout: 3000,     // ms antes de que un comando expire
-  autoReconnect: true,      // Reconectar automáticamente al desconectarse
+  baudRate: 9600, // Velocidad en baudios
+  dataBits: 8, // 7 u 8
+  stopBits: 1, // 1 o 2
+  parity: "none", // "none" | "even" | "odd"
+  flowControl: "none", // "none" | "hardware"
+  bufferSize: 255, // Tamaño del buffer de lectura (bytes)
+  parser: delimiter("\n"), // Cómo dividir los bytes entrantes en mensajes
+  commandTimeout: 3000, // ms antes de que un comando expire
+  autoReconnect: true, // Reconectar automáticamente al desconectarse
   autoReconnectInterval: 1500, // ms entre intentos de reconexión
-  handshakeTimeout: 2000,   // ms permitidos para que handshake() termine
-  filters: [],              // Filtros de vendor/product ID USB
+  handshakeTimeout: 2000, // ms permitidos para que handshake() termine
+  filters: [], // Filtros de vendor/product ID USB
 });
 ```
 

@@ -29,8 +29,9 @@ features:
 You are viewing the **v1 legacy documentation**. v1 is no longer actively maintained.
 
 For new projects, use [v2 (latest)](/guide/getting-started) which adds:
+
 - Provider-agnostic adapters (WebUSB, Web Bluetooth, WebSocket)
 - Full TypeScript generics
 - Built-in command queue
 - Auto-reconnect with back-off
-:::
+  :::

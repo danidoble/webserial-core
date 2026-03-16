@@ -21,9 +21,9 @@ import { createWebSocketProvider } from "webserial-core";
 createWebSocketProvider(serverUrl: string): SerialProvider
 ```
 
-| Parámetro   | Tipo     | Descripción                                                             |
-| ----------- | -------- | ----------------------------------------------------------------------- |
-| `serverUrl` | `string` | URL WebSocket del servidor puente (ej. `"ws://localhost:8080"`)         |
+| Parámetro   | Tipo     | Descripción                                                     |
+| ----------- | -------- | --------------------------------------------------------------- |
+| `serverUrl` | `string` | URL WebSocket del servidor puente (ej. `"ws://localhost:8080"`) |
 
 ## Uso
 

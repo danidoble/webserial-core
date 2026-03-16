@@ -77,7 +77,8 @@ function getSectionLabel(rel) {
   const clean = isEs ? rel.slice(3) : rel;
 
   if (clean.startsWith("guide/")) return isEs ? "Guía" : "Guide";
-  if (clean.startsWith("api/")) return isEs ? "Referencia API" : "API Reference";
+  if (clean.startsWith("api/"))
+    return isEs ? "Referencia API" : "API Reference";
   if (clean.startsWith("examples/")) return isEs ? "Ejemplos" : "Examples";
   if (clean === "demos.md" || clean.startsWith("demos"))
     return isEs ? "Demos interactivos" : "Demos";
@@ -205,7 +206,15 @@ function parseFile(absPath) {
     url: toUrl(pagePath),
     anchor: null,
     content: null,
-    hierarchy: { lvl0, lvl1, lvl2: null, lvl3: null, lvl4: null, lvl5: null, lvl6: null },
+    hierarchy: {
+      lvl0,
+      lvl1,
+      lvl2: null,
+      lvl3: null,
+      lvl4: null,
+      lvl5: null,
+      lvl6: null,
+    },
     type: "lvl1",
     lang,
   });
@@ -215,7 +224,12 @@ function parseFile(absPath) {
   const h2s = [];
   lines.forEach((line, idx) => {
     const m = line.match(/^##\s+(.+)$/);
-    if (m) h2s.push({ heading: stripInline(m[1]), anchor: toAnchor(m[1]), lineIdx: idx });
+    if (m)
+      h2s.push({
+        heading: stripInline(m[1]),
+        anchor: toAnchor(m[1]),
+        lineIdx: idx,
+      });
   });
 
   if (h2s.length === 0) {
@@ -227,7 +241,15 @@ function parseFile(absPath) {
         url: toUrl(pagePath),
         anchor: null,
         content,
-        hierarchy: { lvl0, lvl1, lvl2: null, lvl3: null, lvl4: null, lvl5: null, lvl6: null },
+        hierarchy: {
+          lvl0,
+          lvl1,
+          lvl2: null,
+          lvl3: null,
+          lvl4: null,
+          lvl5: null,
+          lvl6: null,
+        },
         type: "content",
         lang,
       });
@@ -247,7 +269,15 @@ function parseFile(absPath) {
       url: toUrl(sectionUrl),
       anchor,
       content: null,
-      hierarchy: { lvl0, lvl1, lvl2, lvl3: null, lvl4: null, lvl5: null, lvl6: null },
+      hierarchy: {
+        lvl0,
+        lvl1,
+        lvl2,
+        lvl3: null,
+        lvl4: null,
+        lvl5: null,
+        lvl6: null,
+      },
       type: "lvl2",
       lang,
     });
@@ -267,7 +297,15 @@ function parseFile(absPath) {
           url: toUrl(sectionUrl),
           anchor,
           content: text,
-          hierarchy: { lvl0, lvl1, lvl2, lvl3: null, lvl4: null, lvl5: null, lvl6: null },
+          hierarchy: {
+            lvl0,
+            lvl1,
+            lvl2,
+            lvl3: null,
+            lvl4: null,
+            lvl5: null,
+            lvl6: null,
+          },
           type: "content",
           lang,
         });
@@ -377,4 +415,3 @@ try {
   console.error("\n❌  Algolia indexing failed:", err.message);
   process.exit(1);
 }
-

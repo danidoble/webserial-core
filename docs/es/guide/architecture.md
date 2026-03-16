@@ -74,11 +74,11 @@ interface SerialParser<T> {
 Recibe bytes sin procesar y llama a `push()` por cada mensaje completo. Se incluyen
 tres parsers integrados:
 
-| Parser          | Fábrica          | Descripción                                       |
-| --------------- | ---------------- | ------------------------------------------------- |
-| Delimitador     | `delimiter(sep)` | Divide en una secuencia de bytes (ej. `"\n"`)     |
-| Longitud fija   | `fixedLength(n)` | Emite exactamente N bytes                         |
-| Sin procesar    | `raw()`          | Pasa cada chunk sin cambios como `Uint8Array`     |
+| Parser        | Fábrica          | Descripción                                   |
+| ------------- | ---------------- | --------------------------------------------- |
+| Delimitador   | `delimiter(sep)` | Divide en una secuencia de bytes (ej. `"\n"`) |
+| Longitud fija | `fixedLength(n)` | Emite exactamente N bytes                     |
+| Sin procesar  | `raw()`          | Pasa cada chunk sin cambios como `Uint8Array` |
 
 ### `CommandQueue`
 

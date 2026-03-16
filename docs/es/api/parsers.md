@@ -23,9 +23,9 @@ parser: delimiter("\r\n");
 parser: delimiter(new Uint8Array([0xaa, 0xff]));
 ```
 
-| Parámetro   | Tipo                   | Descripción                                        |
-| ----------- | ---------------------- | -------------------------------------------------- |
-| `separator` | `string \| Uint8Array` | Secuencia de bytes que marca el fin de un frame    |
+| Parámetro   | Tipo                   | Descripción                                     |
+| ----------- | ---------------------- | ----------------------------------------------- |
+| `separator` | `string \| Uint8Array` | Secuencia de bytes que marca el fin de un frame |
 
 **Emite:** `string`
 
@@ -43,9 +43,9 @@ import { fixedLength } from "webserial-core";
 parser: fixedLength(16);
 ```
 
-| Parámetro | Tipo     | Descripción                |
-| --------- | -------- | -------------------------- |
-| `length`  | `number` | Número de bytes por frame  |
+| Parámetro | Tipo     | Descripción               |
+| --------- | -------- | ------------------------- |
+| `length`  | `number` | Número de bytes por frame |
 
 **Emite:** `Uint8Array`
 

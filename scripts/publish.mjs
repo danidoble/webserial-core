@@ -104,8 +104,10 @@ function writePkg(pkg) {
  */
 function bumpVersion(version, bump, stable = false) {
   const dashIdx = version.indexOf("-");
-  const base = dashIdx !== -1 ? version.slice(0, dashIdx) : version.split("+")[0];
-  const prerelease = dashIdx !== -1 ? version.slice(dashIdx + 1).split("+")[0] : null;
+  const base =
+    dashIdx !== -1 ? version.slice(0, dashIdx) : version.split("+")[0];
+  const prerelease =
+    dashIdx !== -1 ? version.slice(dashIdx + 1).split("+")[0] : null;
 
   const parts = base.split(".").map(Number);
   if (parts.length !== 3 || parts.some(Number.isNaN)) {
@@ -115,9 +117,16 @@ function bumpVersion(version, bump, stable = false) {
 
   // No pre-release tag or explicitly requesting stable → plain semver bump
   if (!prerelease || stable) {
-    if (bump === "major") { major += 1; minor = 0; patch = 0; }
-    else if (bump === "minor") { minor += 1; patch = 0; }
-    else { patch += 1; }
+    if (bump === "major") {
+      major += 1;
+      minor = 0;
+      patch = 0;
+    } else if (bump === "minor") {
+      minor += 1;
+      patch = 0;
+    } else {
+      patch += 1;
+    }
     return `${major}.${minor}.${patch}`;
   }
 
@@ -126,7 +135,7 @@ function bumpVersion(version, bump, stable = false) {
 
   if (counterMatch) {
     // Tagged with a numeric counter (e.g. alpha.1, beta.3, rc.2)
-    const label = counterMatch[1];   // "alpha", "beta", "rc", …
+    const label = counterMatch[1]; // "alpha", "beta", "rc", …
     const counter = Number(counterMatch[2]);
 
     if (bump === "patch") {
@@ -134,15 +143,28 @@ function bumpVersion(version, bump, stable = false) {
       return `${major}.${minor}.${patch}-${label ? label + "." : ""}${counter + 1}`;
     }
     // minor / major: bump the base and reset the counter to 1
-    if (bump === "minor") { minor += 1; patch = 0; }
-    else { major += 1; minor = 0; patch = 0; }
+    if (bump === "minor") {
+      minor += 1;
+      patch = 0;
+    } else {
+      major += 1;
+      minor = 0;
+      patch = 0;
+    }
     return `${major}.${minor}.${patch}-${label ? label + "." : ""}1`;
   }
 
   // Bare tag without a counter (e.g. "-dev", "-next") — always bump base
-  if (bump === "major") { major += 1; minor = 0; patch = 0; }
-  else if (bump === "minor") { minor += 1; patch = 0; }
-  else { patch += 1; }
+  if (bump === "major") {
+    major += 1;
+    minor = 0;
+    patch = 0;
+  } else if (bump === "minor") {
+    minor += 1;
+    patch = 0;
+  } else {
+    patch += 1;
+  }
   return `${major}.${minor}.${patch}-${prerelease}`;
 }
 
@@ -177,7 +199,7 @@ function updateChangelog(version) {
 // ---------------------------------------------------------------------------
 // Argument parsing
 // ---------------------------------------------------------------------------
- 
+
 const argv = process.argv.slice(2);
 
 /** @type {"patch"|"minor"|"major"} */
@@ -200,7 +222,7 @@ const distTag = tagArgIndex !== -1 ? argv[tagArgIndex + 1] : "latest";
 
 if (!distTag || distTag.startsWith("--")) {
   console.error("Error: --tag requires a value (e.g. --tag beta)");
-   
+
   process.exit(1);
 }
 
@@ -224,7 +246,7 @@ if (!dryRun) {
       "\nError: working directory has uncommitted changes.\n" +
         "Commit or stash your changes before releasing, or pass --dry-run.\n",
     );
-     
+
     process.exit(1);
   }
 }
@@ -254,7 +276,7 @@ if (dryRun) {
     "\n✅  Dry-run complete. Version bumped and changelog updated locally.\n" +
       "   No commits, tags, pushes, or npm publish were performed.\n",
   );
-   
+
   process.exit(0);
 }
 

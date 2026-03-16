@@ -76,12 +76,12 @@ await device.send("LED_ON\n");
 
 ## Vendor IDs USB comunes
 
-| Dispositivo               | Vendor ID | Product ID |
-| ------------------------- | --------- | ---------- |
-| ESP32 / NodeMCU (CP2102)  | `0x10c4`  | `0xea60`   |
-| ESP32 / NodeMCU (CH340)   | `0x1a86`  | `0x7523`   |
-| Arduino Uno               | `0x2341`  | `0x0043`   |
-| Arduino Nano              | `0x0403`  | `0x6001`   |
+| Dispositivo              | Vendor ID | Product ID |
+| ------------------------ | --------- | ---------- |
+| ESP32 / NodeMCU (CP2102) | `0x10c4`  | `0xea60`   |
+| ESP32 / NodeMCU (CH340)  | `0x1a86`  | `0x7523`   |
+| Arduino Uno              | `0x2341`  | `0x0043`   |
+| Arduino Nano             | `0x0403`  | `0x6001`   |
 
 ## Demo interactivo
 

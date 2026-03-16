@@ -8,11 +8,11 @@ sobre GATT para emular una conexión serial.
 
 Implementa el **Nordic UART Service (NUS)** sobre BLE:
 
-| UUID                                   | Rol                                                          |
-| -------------------------------------- | ------------------------------------------------------------ |
-| `6e400001-b5a3-f393-e0a9-e50e24dcca9e` | Servicio primario                                            |
-| `6e400002-b5a3-f393-e0a9-e50e24dcca9e` | Característica TX (el navegador escribe)                     |
-| `6e400003-b5a3-f393-e0a9-e50e24dcca9e` | Característica RX (el navegador lee vía notificaciones)      |
+| UUID                                   | Rol                                                     |
+| -------------------------------------- | ------------------------------------------------------- |
+| `6e400001-b5a3-f393-e0a9-e50e24dcca9e` | Servicio primario                                       |
+| `6e400002-b5a3-f393-e0a9-e50e24dcca9e` | Característica TX (el navegador escribe)                |
+| `6e400003-b5a3-f393-e0a9-e50e24dcca9e` | Característica RX (el navegador lee vía notificaciones) |
 
 Hardware compatible: serie nRF52, ESP32 BLE UART, módulos HC-08 / AT-09 BLE,
 o cualquier firmware que anuncie el servicio NUS.

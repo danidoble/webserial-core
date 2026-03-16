@@ -73,20 +73,20 @@ await device.send("LED_ON\n");
 
 ## Referencia del protocolo
 
-| Navegador → Servidor                    | Descripción             |
-| --------------------------------------- | ----------------------- |
-| `{ type: "list-ports", filters: [] }`   | Solicitar puertos       |
-| `{ type: "open", path, baudRate, ... }` | Abrir un puerto         |
-| `{ type: "write", bytes: number[] }`    | Enviar bytes            |
-| `{ type: "close" }`                     | Cerrar el puerto        |
+| Navegador → Servidor                    | Descripción       |
+| --------------------------------------- | ----------------- |
+| `{ type: "list-ports", filters: [] }`   | Solicitar puertos |
+| `{ type: "open", path, baudRate, ... }` | Abrir un puerto   |
+| `{ type: "write", bytes: number[] }`    | Enviar bytes      |
+| `{ type: "close" }`                     | Cerrar el puerto  |
 
-| Servidor → Navegador                         | Descripción               |
-| -------------------------------------------- | ------------------------- |
-| `{ type: "port-list", payload: PortInfo[] }` | Puertos disponibles       |
-| `{ type: "opened" }`                         | Puerto abierto con éxito  |
-| `{ type: "data", bytes: number[] }`          | Bytes seriales entrantes  |
-| `{ type: "closed" }`                         | Puerto cerrado            |
-| `{ type: "error", payload: { message } }`    | Error                     |
+| Servidor → Navegador                         | Descripción              |
+| -------------------------------------------- | ------------------------ |
+| `{ type: "port-list", payload: PortInfo[] }` | Puertos disponibles      |
+| `{ type: "opened" }`                         | Puerto abierto con éxito |
+| `{ type: "data", bytes: number[] }`          | Bytes seriales entrantes |
+| `{ type: "closed" }`                         | Puerto cerrado           |
+| `{ type: "error", payload: { message } }`    | Error                    |
 
 ## Conectar a una máquina remota
 

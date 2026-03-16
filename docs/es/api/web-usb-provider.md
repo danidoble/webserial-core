@@ -15,11 +15,11 @@ como polyfill para la Web Serial API nativa.
 
 ## Protocolos soportados
 
-| Protocolo       | Clase USB       | Notas                              |
-| --------------- | --------------- | ---------------------------------- |
-| CDC ACM         | Clase 0x02      | Arduino estándar, ST-LINK          |
-| CP210x / CH340  | Vendor específico | Puentes USB-UART comunes          |
-| Bulk genérico   | Cualquier clase | Dispositivos de transferencia bulk |
+| Protocolo      | Clase USB         | Notas                              |
+| -------------- | ----------------- | ---------------------------------- |
+| CDC ACM        | Clase 0x02        | Arduino estándar, ST-LINK          |
+| CP210x / CH340 | Vendor específico | Puentes USB-UART comunes           |
+| Bulk genérico  | Cualquier clase   | Dispositivos de transferencia bulk |
 
 ## Importación
 
@@ -33,10 +33,10 @@ import { WebUsbProvider } from "webserial-core";
 new WebUsbProvider(options?: SerialPolyfillOptions)
 ```
 
-| Opción                      | Tipo     | Por defecto | Descripción                                    |
-| --------------------------- | -------- | ----------- | ---------------------------------------------- |
+| Opción                      | Tipo     | Por defecto | Descripción                                          |
+| --------------------------- | -------- | ----------- | ---------------------------------------------------- |
 | `usbControlInterfaceClass`  | `number` | `10`        | Clase de interfaz USB para transferencias de control |
-| `usbTransferInterfaceClass` | `number` | `10`        | Clase de interfaz USB para transferencias bulk |
+| `usbTransferInterfaceClass` | `number` | `10`        | Clase de interfaz USB para transferencias bulk       |
 
 Para dispositivos con interfaces de clase vendor (CP210x, CH340):
 
@@ -50,7 +50,11 @@ new WebUsbProvider({
 ## Uso
 
 ```ts
-import { AbstractSerialDevice, delimiter, WebUsbProvider } from "webserial-core";
+import {
+  AbstractSerialDevice,
+  delimiter,
+  WebUsbProvider,
+} from "webserial-core";
 
 AbstractSerialDevice.setProvider(
   new WebUsbProvider({

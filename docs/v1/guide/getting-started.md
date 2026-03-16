@@ -44,14 +44,14 @@ await device.open();
 
 ## Differences from v2
 
-| Feature | v1 | v2 |
-|---------|----|----|
-| Transports | Web Serial only | Web Serial, WebUSB, Bluetooth, WebSocket |
-| TypeScript generics | Partial | Full |
-| Command queue | ❌ | ✅ |
-| Auto-reconnect | ❌ | ✅ |
-| Provider injection | ❌ | ✅ |
-| Tree-shakeable | ❌ | ✅ |
+| Feature             | v1              | v2                                       |
+| ------------------- | --------------- | ---------------------------------------- |
+| Transports          | Web Serial only | Web Serial, WebUSB, Bluetooth, WebSocket |
+| TypeScript generics | Partial         | Full                                     |
+| Command queue       | ❌              | ✅                                       |
+| Auto-reconnect      | ❌              | ✅                                       |
+| Provider injection  | ❌              | ✅                                       |
+| Tree-shakeable      | ❌              | ✅                                       |
 
 ## Migrating to v2
 

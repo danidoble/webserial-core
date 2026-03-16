@@ -19,15 +19,9 @@ const ROOT = resolve(__dirname, "..");
 /** @type {[string, string][]} Files to copy: [src, dst] relative to ROOT */
 const copies = [
   // UMD bundle — used by standalone demo HTML pages via <script src="/dist/...">
-  [
-    "dist/webserial-core.umd.js",
-    "docs/public/dist/webserial-core.umd.js",
-  ],
+  ["dist/webserial-core.umd.js", "docs/public/dist/webserial-core.umd.js"],
   // Shared demo stylesheet — used by all standalone demo pages
-  [
-    "demos/style.css",
-    "docs/public/demo-style.css",
-  ],
+  ["demos/style.css", "docs/public/demo-style.css"],
 ];
 
 let ok = true;

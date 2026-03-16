@@ -23,8 +23,9 @@
       </header>
 
       <p class="info-text">
-        Uses <code>createBluetoothProvider()</code> with the Nordic UART Service (NUS).
-        Compatible with ESP32-BLE, nRF52, HM-10, and any device advertising NUS.
+        Uses <code>createBluetoothProvider()</code> with the Nordic UART Service
+        (NUS). Compatible with ESP32-BLE, nRF52, HM-10, and any device
+        advertising NUS.
       </p>
 
       <div class="controls">
@@ -45,14 +46,17 @@
 
       <div id="log"></div>
 
-      <a class="nav-link" href="/demos/web-serial.html">→ Web Serial (native)</a>
+      <a class="nav-link" href="/demos/web-serial.html"
+        >→ Web Serial (native)</a
+      >
       <a class="nav-link" href="/demos/web-usb.html">→ WebUSB Polyfill</a>
     </div>
 
     <!-- UMD bundle: exposes window.WebSerialCore -->
     <script src="/dist/webserial-core.umd.js"></script>
     <script>
-      const { AbstractSerialDevice, createBluetoothProvider, delimiter } = window.WebSerialCore;
+      const { AbstractSerialDevice, createBluetoothProvider, delimiter } =
+        window.WebSerialCore;
 
       // ─── Set BLE UART provider globally ──────────────────────────
       // createBluetoothProvider() returns a SerialProvider that uses the
@@ -77,11 +81,11 @@
       }
 
       // ─── UI references ────────────────────────────────────────────
-      const logEl      = document.getElementById("log");
+      const logEl = document.getElementById("log");
       const connectBtn = document.getElementById("btn-connect");
       const disconnBtn = document.getElementById("btn-disconnect");
-      const sendBtn    = document.getElementById("btn-send");
-      const sendInput  = document.getElementById("input-send");
+      const sendBtn = document.getElementById("btn-send");
+      const sendInput = document.getElementById("input-send");
       const modeToggle = document.getElementById("mode-toggle");
 
       let sendMode = "text";
@@ -103,22 +107,47 @@
 
       function hexToBytes(hex) {
         const h = hex.replace(/\s+/g, "");
-        if (h.length % 2 !== 0) throw new Error("Hex string must have even length.");
+        if (h.length % 2 !== 0)
+          throw new Error("Hex string must have even length.");
         const bytes = new Uint8Array(h.length / 2);
-        for (let i = 0; i < h.length; i += 2) bytes[i / 2] = parseInt(h.slice(i, i + 2), 16);
+        for (let i = 0; i < h.length; i += 2)
+          bytes[i / 2] = parseInt(h.slice(i, i + 2), 16);
         return bytes;
       }
 
       // ─── Device instance ──────────────────────────────────────────
       const device = new DemoBleDevice();
 
-      device.on("serial:connecting",      () => { log("Scanning for BLE device...", "event"); connectBtn.disabled = true; });
-      device.on("serial:connected",       () => { log("BLE connected!", "event"); connectBtn.disabled = true; disconnBtn.disabled = false; sendBtn.disabled = false; sendInput.disabled = false; });
-      device.on("serial:disconnected",    () => { log("BLE disconnected.", "event"); connectBtn.disabled = false; disconnBtn.disabled = true; sendBtn.disabled = true; sendInput.disabled = true; });
-      device.on("serial:data",            (d) => log(`← ${d}`, "data"));
-      device.on("serial:sent",            (d) => log(`→ [SENT] ${formatBytes(d)}`, "info"));
-      device.on("serial:error",           (e) => { log(`Error: ${e.message}`, "error"); connectBtn.disabled = false; });
-      device.on("serial:need-permission", () => { log("Permission denied — pair a BLE device first.", "error"); connectBtn.disabled = false; });
+      device.on("serial:connecting", () => {
+        log("Scanning for BLE device...", "event");
+        connectBtn.disabled = true;
+      });
+      device.on("serial:connected", () => {
+        log("BLE connected!", "event");
+        connectBtn.disabled = true;
+        disconnBtn.disabled = false;
+        sendBtn.disabled = false;
+        sendInput.disabled = false;
+      });
+      device.on("serial:disconnected", () => {
+        log("BLE disconnected.", "event");
+        connectBtn.disabled = false;
+        disconnBtn.disabled = true;
+        sendBtn.disabled = true;
+        sendInput.disabled = true;
+      });
+      device.on("serial:data", (d) => log(`← ${d}`, "data"));
+      device.on("serial:sent", (d) =>
+        log(`→ [SENT] ${formatBytes(d)}`, "info"),
+      );
+      device.on("serial:error", (e) => {
+        log(`Error: ${e.message}`, "error");
+        connectBtn.disabled = false;
+      });
+      device.on("serial:need-permission", () => {
+        log("Permission denied — pair a BLE device first.", "error");
+        connectBtn.disabled = false;
+      });
 
       // ─── Controls ─────────────────────────────────────────────────
       connectBtn.addEventListener("click", () => device.connect());
@@ -127,9 +156,10 @@
       modeToggle.addEventListener("click", () => {
         sendMode = sendMode === "text" ? "hex" : "text";
         modeToggle.textContent = sendMode === "text" ? "TXT" : "HEX";
-        sendInput.placeholder = sendMode === "text"
-          ? "Type a command, e.g. LED_ON"
-          : "Type hex, e.g. 41 42 0A";
+        sendInput.placeholder =
+          sendMode === "text"
+            ? "Type a command, e.g. LED_ON"
+            : "Type hex, e.g. 41 42 0A";
       });
 
       async function sendData() {
@@ -148,13 +178,21 @@
       }
 
       sendBtn.addEventListener("click", sendData);
-      sendInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendData(); });
+      sendInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") sendData();
+      });
 
       if (!navigator.bluetooth) {
-        log("⚠ Web Bluetooth is not supported in this browser. Use Chrome or Edge on Android/desktop.", "error");
+        log(
+          "⚠ Web Bluetooth is not supported in this browser. Use Chrome or Edge on Android/desktop.",
+          "error",
+        );
         connectBtn.disabled = true;
       } else {
-        log("BLE UART demo ready. Click 'Connect BLE' and select your device.", "info");
+        log(
+          "BLE UART demo ready. Click 'Connect BLE' and select your device.",
+          "info",
+        );
       }
     </script>
   </body>
