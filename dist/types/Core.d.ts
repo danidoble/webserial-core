@@ -37,7 +37,7 @@ type PortInfo = {
     parser: ParserSocketPort;
 };
 type SerialData = {
-    transformStream: false | TransformStream;
+    transformStream: false | (() => TransformStream);
     socket: boolean;
     portInfo: PortInfo;
     aux_connecting: string;
@@ -62,6 +62,9 @@ type SerialData = {
     auto_response: any;
     free_timeout_ms: number;
     useRTSCTS: boolean;
+    pipeAbortController: AbortController | null;
+    pipeDone: Promise<void> | null;
+    pumpReader: ReadableStreamDefaultReader<Uint8Array> | null;
 };
 interface TimeResponse {
     response_connection: number;
@@ -93,7 +96,7 @@ interface CoreConstructorParams {
     device_listen_on_channel?: number | string;
     bypassSerialBytesConnection?: boolean;
     socket?: boolean;
-    transformStream?: false | TransformStream;
+    transformStream?: false | TransformStream | (() => TransformStream);
 }
 interface CustomCode {
     code: string | Uint8Array | Array<string> | Array<number>;

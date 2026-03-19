@@ -48,7 +48,7 @@ type PortInfo = {
 };
 
 type SerialData = {
-  transformStream: false | TransformStream;
+  transformStream: false | (() => TransformStream);
   socket: boolean;
   portInfo: PortInfo;
   aux_connecting: string;
@@ -73,6 +73,9 @@ type SerialData = {
   auto_response: any;
   free_timeout_ms: number;
   useRTSCTS: boolean;
+  pipeAbortController: AbortController | null;
+  pipeDone: Promise<void> | null;
+  pumpReader: ReadableStreamDefaultReader<Uint8Array> | null;
 };
 
 interface TimeResponse {
@@ -109,7 +112,7 @@ interface CoreConstructorParams {
   device_listen_on_channel?: number | string;
   bypassSerialBytesConnection?: boolean;
   socket?: boolean;
-  transformStream?: false | TransformStream;
+  transformStream?: false | TransformStream | (() => TransformStream);
 }
 
 const defaultConfigPort: SerialOptions = {
@@ -312,6 +315,9 @@ export class Core extends Dispatcher implements ICore {
       auto_response: null,
       free_timeout_ms: 50, // In previous versions 400 was used
       useRTSCTS: false, // Use RTS/CTS flow control
+      pipeAbortController: null,
+      pipeDone: null,
+      pumpReader: null,
     },
     device: {
       type: "unknown",
@@ -379,7 +385,16 @@ export class Core extends Dispatcher implements ICore {
     }
 
     this.__internal__.serial.socket = socket;
-    this.__internal__.serial.transformStream = transformStream;
+    if (typeof transformStream === "function") {
+      this.__internal__.serial.transformStream = transformStream;
+    } else if (transformStream) {
+      // Wrap instance in a factory. Note: a single instance is single-use;
+      // pass a factory (() => new MyTransform()) to support reconnection.
+      const instance = transformStream;
+      this.__internal__.serial.transformStream = () => instance;
+    } else {
+      this.__internal__.serial.transformStream = false;
+    }
 
     this.#registerDefaultListeners();
     this.#internalEvents();
@@ -822,29 +837,46 @@ export class Core extends Dispatcher implements ICore {
       } else {
         this.__internal__.serial.keep_reading = false;
 
+        // Cancel the application-level reader (parser.readable or port.readable).
         const reader: ReadableStreamDefaultReader<Uint8Array> | null = this.__internal__.serial.reader;
-        const output_stream: WritableStream<Uint8Array> | null = this.__internal__.serial.output_stream;
         if (reader) {
-          await reader.cancel().catch((err: unknown): void => this.serialErrors(err));
-          if (this.__internal__.serial.input_done) {
-            await this.__internal__.serial.input_done;
-          }
+          await reader.cancel().catch((): void => {});
         }
 
+        // Cancel the pump reader (holds lock on port.readable when using TransformStream).
+        // This causes the pump loop to exit, close parser.writable cleanly (not abort),
+        // and release port.readable — making port.close() safe to call.
+        if (this.__internal__.serial.pumpReader) {
+          await this.__internal__.serial.pumpReader.cancel().catch((): void => {});
+        }
+
+        // Wait for the pump to fully finish (releases port.readable lock).
+        if (this.__internal__.serial.pipeDone) {
+          await this.__internal__.serial.pipeDone.catch((): void => {});
+          this.__internal__.serial.pipeDone = null;
+        }
+
+        // Wait for the read loop to fully exit.
+        if (this.__internal__.serial.input_done) {
+          await this.__internal__.serial.input_done.catch((): void => {});
+        }
+
+        const output_stream: WritableStream<Uint8Array> | null = this.__internal__.serial.output_stream;
         if (output_stream) {
           const writer = output_stream.getWriter();
-          await writer.close();
+          await writer.close().catch((): void => {});
           writer.releaseLock();
           if (this.__internal__.serial.output_done) {
-            await this.__internal__.serial.output_done;
+            await this.__internal__.serial.output_done.catch((): void => {});
           }
         }
 
-        if (this.__internal__.serial && this.__internal__.serial.connected && this.__internal__.serial.port) {
-          await this.__internal__.serial.port.close();
+        if (this.__internal__.serial.port) {
+          await this.__internal__.serial.port.close().catch((): void => {});
         }
       }
     } catch (err: unknown) {
+      console.error(err);
       this.serialErrors(err);
     } finally {
       this.__internal__.serial.reader = null;
@@ -1242,11 +1274,53 @@ export class Core extends Dispatcher implements ICore {
     const port: SerialPort | null = this.__internal__.serial.port;
     if (!port || !port.readable) throw new Error("Port is not readable");
 
-    const parser = this.__internal__.serial.transformStream ? this.__internal__.serial.transformStream : null;
-    const reader: ReadableStreamDefaultReader<Uint8Array> = parser
-      ? port.readable.pipeThrough(parser).getReader()
-      : port.readable.getReader();
-    //const reader: ReadableStreamDefaultReader<Uint8Array> = port.readable.getReader();
+    const transformFactory = this.__internal__.serial.transformStream;
+    let reader: ReadableStreamDefaultReader<Uint8Array>;
+
+    if (transformFactory) {
+      // Create a fresh TransformStream for this connection (required: streams are single-use).
+      const parser: TransformStream = transformFactory();
+
+      // Manual pump: we hold our own reader on port.readable so we can cancel it
+      // cleanly on disconnect — without aborting parser.writable (which would
+      // permanently corrupt the stream and prevent reconnection).
+      const pumpReader = port.readable.getReader();
+      this.__internal__.serial.pumpReader = pumpReader;
+      const writer = parser.writable.getWriter();
+
+      this.__internal__.serial.pipeDone = (async (): Promise<void> => {
+        try {
+          while (true) {
+            const { value, done } = await pumpReader.read();
+            if (done) break;
+            await writer.write(value);
+          }
+        } catch {
+          // Pump was cancelled during disconnect or writer errored — expected.
+        } finally {
+          // Release pumpReader lock FIRST (this unlocks port.readable so port.close() can proceed).
+          // Each releaseLock() is wrapped independently so a failure in one cannot block the other.
+          // writer.releaseLock() can throw if the stream is in "closing" state (e.g. a previous
+          // writer.close() call is still pending), which would previously prevent pumpReader from
+          // being released and leave port.readable permanently locked.
+          try {
+            pumpReader.releaseLock();
+          } catch {
+            /* already released */
+          }
+          try {
+            writer.releaseLock();
+          } catch {
+            /* stream may be in closing/closed state */
+          }
+          this.__internal__.serial.pumpReader = null;
+        }
+      })();
+
+      reader = (parser.readable as ReadableStream<Uint8Array>).getReader();
+    } else {
+      reader = port.readable.getReader();
+    }
 
     this.__internal__.serial.reader = reader;
 
@@ -1257,7 +1331,7 @@ export class Core extends Dispatcher implements ICore {
 
         this.#appendBuffer(value);
 
-        if (this.__internal__.serial.transformStream) {
+        if (transformFactory) {
           await this.#transformStreamLoop();
         } else if (this.__internal__.serial.response.delimited) {
           await this.#delimitedSerialLoop();
@@ -1273,10 +1347,6 @@ export class Core extends Dispatcher implements ICore {
       reader.releaseLock();
       this.__internal__.serial.reader = null;
       this.__internal__.serial.keep_reading = true;
-
-      // if (this.__internal__.serial.port) {
-      //   await this.__internal__.serial.port.close();
-      // }
     }
   }
 
@@ -1356,7 +1426,8 @@ export class Core extends Dispatcher implements ICore {
         if (this.__internal__.auto_response) {
           this.#serialGetResponse(this.__internal__.serial.auto_response);
         }
-        await this.#readSerialLoop();
+        this.__internal__.serial.input_done = this.#readSerialLoop();
+        await this.__internal__.serial.input_done;
       }
     } catch (e: unknown) {
       this.#connectingChange(false);
