@@ -61,8 +61,9 @@ export class SerialError extends Error {
     this.context = context;
     this.timestamp = new Date();
 
-    // Maintains proper stack trace for where our error was thrown (only available on V8)
+    // @ts-expect-error Maintains proper stack trace for where our error was thrown (only available on V8)
     if (Error.captureStackTrace) {
+      // @ts-expect-error Maintains proper stack trace for where our error was thrown (only available on V8)
       Error.captureStackTrace(this, SerialError);
     }
   }
