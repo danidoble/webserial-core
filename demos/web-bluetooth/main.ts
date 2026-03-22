@@ -784,5 +784,5 @@ if (!navigator.bluetooth) {
 }
 
 /* ── Background & mobile nav ────────────────────────────── */
-initCircuitBackground(messages);
+initCircuitBackground();
 initMobileNav();

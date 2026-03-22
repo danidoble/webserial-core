@@ -1166,11 +1166,11 @@ function buildZip(
    CIRCUIT BACKGROUND ANIMATION
    ================================================================ */
 
-export function initCircuitBackground(el: HTMLElement): void {
+export function initCircuitBackground(): void {
   const canvas = document.createElement("canvas");
   canvas.style.cssText =
-    "position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:0.55;";
-  el.insertBefore(canvas, el.firstChild);
+    "position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:0.55;";
+  document.body.insertBefore(canvas, document.body.firstChild);
 
   const ctx = canvas.getContext("2d")!;
   const dpr = window.devicePixelRatio || 1;
@@ -1185,9 +1185,8 @@ export function initCircuitBackground(el: HTMLElement): void {
   let H = 0;
 
   function setup(): void {
-    const rect = el.getBoundingClientRect();
-    W = Math.max(rect.width, 1);
-    H = Math.max(rect.height, 1);
+    W = Math.max(window.innerWidth, 1);
+    H = Math.max(window.innerHeight, 1);
     canvas.width = Math.round(W * dpr);
     canvas.height = Math.round(H * dpr);
     canvas.style.width = `${W}px`;
@@ -1344,7 +1343,7 @@ export function initCircuitBackground(el: HTMLElement): void {
     cancelAnimationFrame(raf);
     setup();
     draw();
-  }).observe(el);
+  }).observe(document.body);
 }
 
 /* ================================================================

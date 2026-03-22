@@ -811,5 +811,5 @@ addMessage(
 );
 
 /* ── Background & mobile nav ────────────────────────────── */
-initCircuitBackground(messages);
+initCircuitBackground();
 initMobileNav();
