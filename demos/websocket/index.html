@@ -1,64 +1,485 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WebSocket Bridge — webserial-core demo</title>
-    <link rel="stylesheet" href="../style.css" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>WebSocket — webserial-core demo</title>
+    <link rel="stylesheet" href="../demo-app.css" />
     <style>
       :root {
         --accent: #f97316;
         --accent-dark: #ea580c;
+        --accent-glow: rgba(249, 115, 22, 0.12);
         --accent-badge: #fff7ed;
-        --log-event: #fb923c;
-        --notice-bg: #1c1208;
-        --notice-border: #43270c;
-        --notice-text: #fed7aa;
-        --notice-code-bg: #2c1a08;
       }
     </style>
   </head>
   <body>
-    <div id="app">
-      <header>
-        <h1>🌐 WebSocket Bridge</h1>
-        <span class="badge">Node.js</span>
-        <span>webserial-core v2</span>
-      </header>
+    <!-- ── Topbar ──────────────────────────────────────────── -->
+    <header class="topbar">
+      <button class="icon-btn" id="menu-btn" title="Toggle sidebar">
+        <i data-lucide="menu"></i>
+      </button>
+      <a class="topbar-brand" href="/">
+        <span class="brand-icon"><i data-lucide="globe"></i></span>
+        <span class="brand-name">webserial-core</span>
+        <span class="brand-ver">v2</span>
+      </a>
+      <span class="provider-pill">WebSocket</span>
+      <span class="flex-1"></span>
 
-      <div class="controls">
-        <button id="btn-connect">Connect</button>
-        <button id="btn-disconnect" disabled>Disconnect</button>
+      <nav class="topbar-nav">
+        <a class="nav-item" href="/"
+          ><i data-lucide="zap"></i><span class="nav-lbl"> Web Serial</span></a
+        >
+        <a class="nav-item" href="/ble.html"
+          ><i data-lucide="bluetooth"></i
+          ><span class="nav-lbl"> Bluetooth</span></a
+        >
+        <a class="nav-item" href="/usb.html"
+          ><i data-lucide="usb"></i><span class="nav-lbl"> WebUSB</span></a
+        >
+        <a class="nav-item active" href="/ws.html"
+          ><i data-lucide="globe"></i><span class="nav-lbl"> WebSocket</span></a
+        >
+      </nav>
+
+      <div class="topbar-actions">
+        <div class="status-pill">
+          <div class="status-dot" id="status-dot"></div>
+          <span id="status-text">Disconnected</span>
+        </div>
+        <button class="icon-btn" id="theme-btn" title="Toggle theme">🌙</button>
+        <button
+          class="icon-btn code-toggle"
+          id="code-toggle-btn"
+          title="Toggle code panel"
+        >
+          <i data-lucide="code-2"></i>
+        </button>
+        <button class="btn btn-connect" id="btn-connect">Connect</button>
+        <button class="btn btn-disconnect" id="btn-disconnect" disabled>
+          Disconnect
+        </button>
       </div>
+    </header>
 
-      <div class="notice">
-        Requires the <strong>Node.js bridge server</strong> running locally:<br />
-        <code>cd demos/websocket &amp;&amp; node server.js</code><br /><br />
-        The bridge relays serial I/O over WebSocket JSON messages so the browser
-        can talk to any serial port on the server machine — including behind
-        firewalls or on embedded Linux devices.
-      </div>
+    <!-- ── App layout ───────────────────────────────────────── -->
+    <div class="app-layout">
+      <!-- ── Sidebar ─────────────────────────────────────────── -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-scroll">
+          <!-- Info notice -->
+          <div class="sb-section">
+            <div class="notice">
+              Requires the <strong>Node.js bridge server</strong> running
+              locally:<br />
+              <code>cd demos/websocket &amp;&amp; node server.js</code><br />
+              The bridge relays serial I/O over WebSocket JSON messages.
+            </div>
+          </div>
 
-      <div class="send-row">
-        <button id="mode-toggle">TXT</button>
-        <input
-          id="input-send"
-          type="text"
-          placeholder="Type a command, e.g. LED_ON"
-          disabled
-        />
-        <button id="btn-send" disabled>Send</button>
-      </div>
+          <!-- WebSocket URL -->
+          <div class="sb-section">
+            <div class="sb-title">Bridge URL</div>
+            <div class="field">
+              <label for="cfg-wsurl">WebSocket URL</label>
+              <input
+                type="url"
+                id="cfg-wsurl"
+                value="ws://localhost:8080"
+                placeholder="ws://localhost:8080"
+              />
+            </div>
+          </div>
 
-      <div id="log"></div>
+          <!-- Connection settings -->
+          <div class="sb-section">
+            <div class="sb-title">Connection</div>
 
-      <a class="nav-link" href="/demos/web-serial/">← Web Serial (native)</a>
-      <a class="nav-link" href="/demos/web-usb/">← WebUSB Polyfill</a>
-      <a class="nav-link" href="/demos/web-bluetooth/"
-        >← Web Bluetooth (BLE UART)</a
-      >
+            <div class="field">
+              <label for="cfg-baud">Baud Rate</label>
+              <select id="cfg-baud">
+                <option>300</option>
+                <option>600</option>
+                <option>1200</option>
+                <option>2400</option>
+                <option>4800</option>
+                <option value="9600" selected>9600</option>
+                <option>14400</option>
+                <option>19200</option>
+                <option>38400</option>
+                <option>57600</option>
+                <option>115200</option>
+                <option>230400</option>
+                <option>250000</option>
+                <option>500000</option>
+                <option>1000000</option>
+              </select>
+            </div>
+
+            <div class="field-row">
+              <div class="field">
+                <label for="cfg-databits">Data Bits</label>
+                <select id="cfg-databits">
+                  <option value="7">7</option>
+                  <option value="8" selected>8</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="cfg-stopbits">Stop Bits</label>
+                <select id="cfg-stopbits">
+                  <option value="1" selected>1</option>
+                  <option value="2">2</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field-row">
+              <div class="field">
+                <label for="cfg-parity">Parity</label>
+                <select id="cfg-parity">
+                  <option value="none" selected>None</option>
+                  <option value="even">Even</option>
+                  <option value="odd">Odd</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="cfg-flow">Flow Control</label>
+                <select id="cfg-flow">
+                  <option value="none" selected>None</option>
+                  <option value="hardware">Hardware</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field-row">
+              <div class="field">
+                <label for="cfg-bufsize">Buffer Size</label>
+                <input
+                  type="number"
+                  id="cfg-bufsize"
+                  value="255"
+                  min="64"
+                  max="65536"
+                />
+              </div>
+              <div class="field">
+                <label for="cfg-timeout">Cmd Timeout (ms)</label>
+                <input type="number" id="cfg-timeout" value="3000" min="0" />
+              </div>
+            </div>
+
+            <div class="field-row">
+              <div class="field">
+                <label for="cfg-handshake">Handshake (ms)</label>
+                <input type="number" id="cfg-handshake" value="2000" min="0" />
+              </div>
+              <div class="field">
+                <label for="cfg-reconnect-ms">Reconnect (ms)</label>
+                <input
+                  type="number"
+                  id="cfg-reconnect-ms"
+                  value="1500"
+                  min="500"
+                />
+              </div>
+            </div>
+
+            <div class="field-toggle">
+              <label for="cfg-autoreconnect">Auto Reconnect</label>
+              <label class="sw">
+                <input type="checkbox" id="cfg-autoreconnect" checked />
+                <span class="sw-knob"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Message format -->
+          <div class="sb-section">
+            <div class="sb-title">Message Format</div>
+            <div class="field">
+              <label for="cfg-delim">Delimiter</label>
+              <input
+                type="text"
+                id="cfg-delim"
+                value="\n"
+                placeholder="\n \r\n | etc."
+              />
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="cfg-prepend">Prepend</label>
+                <input
+                  type="text"
+                  id="cfg-prepend"
+                  value=""
+                  placeholder="e.g. STX"
+                />
+              </div>
+              <div class="field">
+                <label for="cfg-append">Append</label>
+                <input
+                  type="text"
+                  id="cfg-append"
+                  value="\n"
+                  placeholder="e.g. \n"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Handshake -->
+          <div class="sb-section">
+            <div class="sb-title">Handshake on Connect</div>
+            <div class="notice" style="margin-bottom: 6px">
+              Sent automatically right after the WebSocket bridge connects.
+              Leave
+              <em>Command</em> empty to skip entirely.
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="cfg-hs-cmd">Command to send</label>
+                <input
+                  type="text"
+                  id="cfg-hs-cmd"
+                  value=""
+                  placeholder="e.g. PING\n  or  FF 01 A3"
+                />
+              </div>
+              <div class="field" style="flex: 0 0 62px">
+                <label for="cfg-hs-cmd-mode">Mode</label>
+                <select id="cfg-hs-cmd-mode">
+                  <option value="text" selected>TXT</option>
+                  <option value="hex">HEX</option>
+                </select>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="cfg-hs-expect"
+                  >Expected <small>(empty = no check)</small></label
+                >
+                <input
+                  type="text"
+                  id="cfg-hs-expect"
+                  value=""
+                  placeholder="e.g. PONG  or  OK"
+                />
+              </div>
+              <div class="field" style="flex: 0 0 62px">
+                <label for="cfg-hs-expect-mode">Mode</label>
+                <select id="cfg-hs-expect-mode">
+                  <option value="text" selected>TXT</option>
+                  <option value="hex">HEX</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Saved Commands -->
+          <div class="sb-section">
+            <div class="sb-title">Saved Commands</div>
+            <div class="notice" style="margin-bottom: 6px">
+              Pre-defined commands to send. Use <em>HEX</em> for raw bytes.
+            </div>
+            <div class="field-row">
+              <div class="field" style="flex: 0 0 72px">
+                <label for="cmd-name">Name</label>
+                <input type="text" id="cmd-name" placeholder="LED ON" />
+              </div>
+              <div class="field">
+                <label for="cmd-value">Command</label>
+                <input type="text" id="cmd-value" placeholder="LED_ON\n" />
+              </div>
+              <div class="field" style="flex: 0 0 62px">
+                <label for="cmd-mode">Mode</label>
+                <select id="cmd-mode">
+                  <option value="text" selected>TXT</option>
+                  <option value="hex">HEX</option>
+                </select>
+              </div>
+            </div>
+            <button
+              class="btn btn-ghost"
+              id="cmd-add"
+              style="width: 100%; margin-top: 3px"
+            >
+              <i data-lucide="plus"></i> Add Command
+            </button>
+            <div class="chip-list" id="cmd-list"></div>
+          </div>
+
+          <!-- Data Listeners -->
+          <div class="sb-section">
+            <div class="sb-title">Data Listeners</div>
+            <div class="notice" style="margin-bottom: 6px">
+              Patterns for <code>on('serial:data')</code> — skeleton code in
+              download.
+            </div>
+            <div class="field-row">
+              <div class="field" style="flex: 0 0 64px">
+                <label for="lst-name">Name</label>
+                <input type="text" id="lst-name" placeholder="Temp" />
+              </div>
+              <div class="field">
+                <label for="lst-pattern">Pattern</label>
+                <input type="text" id="lst-pattern" placeholder="TEMP:" />
+              </div>
+              <div class="field" style="flex: 0 0 62px">
+                <label for="lst-match">Match</label>
+                <select id="lst-match">
+                  <option value="exact">exact</option>
+                  <option value="contains" selected>has</option>
+                  <option value="startsWith">starts</option>
+                  <option value="hex">hex</option>
+                </select>
+              </div>
+            </div>
+            <button
+              class="btn btn-ghost"
+              id="lst-add"
+              style="width: 100%; margin-top: 3px"
+            >
+              <i data-lucide="plus"></i> Add Listener
+            </button>
+            <div class="chip-list" id="lst-list"></div>
+          </div>
+
+          <!-- Download -->
+          <div class="sb-section">
+            <div class="sb-title">Download Code</div>
+            <div class="field">
+              <label for="dl-name">Class / File name</label>
+              <input
+                type="text"
+                id="dl-name"
+                value="MyWsDevice"
+                placeholder="MyWsDevice"
+              />
+            </div>
+            <div class="dl-lang-row">
+              <label class="dl-opt"
+                ><input type="radio" name="dl-lang" value="ts" checked />
+                TypeScript</label
+              >
+              <label class="dl-opt"
+                ><input type="radio" name="dl-lang" value="js" />
+                JavaScript</label
+              >
+            </div>
+            <div class="dl-type-row">
+              <label class="dl-opt"
+                ><input type="radio" name="dl-type" value="file" /> Standalone
+                file</label
+              >
+              <label class="dl-opt"
+                ><input type="radio" name="dl-type" value="project" checked />
+                Full project (ZIP)</label
+              >
+            </div>
+            <div class="dl-btns">
+              <button class="btn btn-dl" id="dl-btn">
+                <i data-lucide="download"></i> Download
+              </button>
+              <button
+                class="btn btn-ghost"
+                id="cfg-export-btn"
+                title="Export configuration as JSON"
+              >
+                <i data-lucide="share"></i> Export config
+              </button>
+              <label
+                class="btn btn-ghost"
+                title="Import configuration from JSON"
+              >
+                <i data-lucide="upload"></i> Import config
+                <input
+                  type="file"
+                  id="cfg-import-input"
+                  accept=".json"
+                  style="display: none"
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+        <!-- /sidebar-scroll -->
+      </aside>
+      <div class="sidebar-resize-handle" id="sidebar-resize-handle"></div>
+
+      <!-- ── Chat console ─────────────────────────────────── -->
+      <main class="console-area">
+        <div class="console-hdr">
+          <div class="status-pill">
+            <div class="status-dot" id="console-dot"></div>
+            <span id="console-text"
+              >Start the Node.js bridge, then click Connect</span
+            >
+          </div>
+          <button
+            class="btn btn-ghost"
+            id="clear-btn"
+            style="margin-left: auto; font-size: 0.7rem; padding: 4px 10px"
+          >
+            Clear
+          </button>
+        </div>
+
+        <div class="messages" id="messages">
+          <div class="empty-state">
+            <div class="empty-icon">🌐</div>
+            <span
+              >Run <strong>node server.js</strong> in demos/websocket/ then
+              connect</span
+            >
+          </div>
+        </div>
+
+        <div class="input-bar">
+          <button class="btn btn-mode" id="mode-toggle">TXT</button>
+          <input
+            class="msg-input"
+            id="input-send"
+            type="text"
+            placeholder="Type a command, e.g. LED_ON"
+            disabled
+          />
+          <button class="btn btn-send" id="btn-send" disabled>Send</button>
+        </div>
+      </main>
+
+      <!-- ── Code panel ────────────────────────────────────── -->
+      <div class="resize-handle" id="resize-handle"></div>
+      <aside class="code-panel" id="code-panel">
+        <div class="cp-hdr">
+          <div class="cp-title">
+            <span>Code Preview</span>
+            <span class="cp-tab" id="code-tab">device.ts</span>
+          </div>
+          <div class="cp-actions">
+            <button class="cp-btn" id="copy-btn">Copy</button>
+          </div>
+        </div>
+        <pre class="code-view" id="code-view"></pre>
+      </aside>
     </div>
+    <!-- /app-layout -->
 
+    <footer class="app-footer">
+      © 2025
+      <a
+        href="https://github.com/danidoble"
+        style="color: inherit; text-decoration: none"
+        >@danidoble</a
+      >
+      · webserial-core v2
+    </footer>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script>
+      lucide.createIcons();
+    </script>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>

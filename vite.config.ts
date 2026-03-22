@@ -37,5 +37,7 @@ export default defineConfig({
       exclude: ["src/**/*.test.ts"],
     }),
   ],
+  // Serve docs/public/ at / in dev so /favicon.svg works in demos
+  publicDir: "docs/public",
   // server: {allowedHosts: ["localhost"]},
 });

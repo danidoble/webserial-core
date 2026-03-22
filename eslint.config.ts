@@ -13,6 +13,7 @@ export default defineConfig([
       // Generated assets copied by prepare-docs.mjs — not source files
       "docs/public/dist/**",
       "docs/public/demo-style.css",
+      "docs/public/demos/assets/**",
     ],
   },
   {

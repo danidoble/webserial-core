@@ -8,40 +8,6 @@
 
 import type { AbstractSerialDevice } from "../core/AbstractSerialDevice.js";
 
-declare global {
-  interface SerialPortInfo {
-    usbVendorId?: number;
-    usbProductId?: number;
-  }
-
-  interface SerialPort {
-    readable: ReadableStream<Uint8Array> | null;
-    writable: WritableStream<Uint8Array> | null;
-    getInfo(): SerialPortInfo;
-    open(options: SerialOptions): Promise<void>;
-    close(): Promise<void>;
-    forget?(): Promise<void>;
-  }
-
-  interface SerialOptions {
-    baudRate: number;
-    dataBits?: number;
-    stopBits?: number;
-    parity?: "none" | "even" | "odd";
-    bufferSize?: number;
-    flowControl?: "none" | "hardware";
-  }
-
-  interface Navigator {
-    serial?: {
-      requestPort(options?: {
-        filters?: SerialPortFilter[];
-      }): Promise<SerialPort>;
-      getPorts(): Promise<SerialPort[]>;
-    };
-  }
-}
-
 export interface SerialPortFilter {
   usbVendorId?: number;
   usbProductId?: number;
@@ -116,6 +82,12 @@ export interface SerialDeviceOptions<T> {
   bufferSize?: number;
   flowControl?: "none" | "hardware";
   commandTimeout?: number;
+  /**
+   * Parser that transforms raw `Uint8Array` chunks into the device data type `T`.
+   * Use `delimiter()` for line-based text protocols, `raw()` or `fixedLength()`
+   * for binary data (declare the device as `AbstractSerialDevice<Uint8Array>`),
+   * or any custom `SerialParser<T>`.
+   */
   parser?: SerialParser<T>;
   /** Enable automatic reconnection when the device disconnects unexpectedly. */
   autoReconnect?: boolean;

@@ -74,7 +74,7 @@ function createBleSerialPort(device: BluetoothDevice): SerialPort {
       readable = null;
       writable = null;
     },
-  } as SerialPort;
+  } as unknown as SerialPort;
 }
 
 export function createBluetoothProvider(): SerialProvider {

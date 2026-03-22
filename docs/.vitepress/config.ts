@@ -56,6 +56,17 @@ function buildSearch(): DefaultTheme.Config["search"] {
 const base = process.env.DOCS_BASE ?? "/";
 
 // ---------------------------------------------------------------------------
+// Canonical site URL — used for sitemap, robots.txt, and absolute meta tags.
+//   Set DOCS_SITE_URL in your deployment environment.
+//   GitHub Pages example : DOCS_SITE_URL=https://danidoble.github.io
+//   Netlify/Vercel (default): https://webserial.dev
+// ---------------------------------------------------------------------------
+const siteUrl = (process.env.DOCS_SITE_URL ?? "https://webserial.dev").replace(
+  /\/$/,
+  "",
+);
+
+// ---------------------------------------------------------------------------
 // Shared nav items
 // ---------------------------------------------------------------------------
 const versionNav: DefaultTheme.NavItem = {
@@ -207,6 +218,49 @@ export default defineConfig({
   // Ignore localhost links in examples / demos
   ignoreDeadLinks: [/^https?:\/\/localhost/],
 
+  // ---------------------------------------------------------------------------
+  // Sitemap — auto-generated at /sitemap.xml on every docs:build
+  // ---------------------------------------------------------------------------
+  sitemap: {
+    hostname: siteUrl,
+  },
+
+  // ---------------------------------------------------------------------------
+  // Per-page canonical <link> + og:url injection
+  // ---------------------------------------------------------------------------
+  transformPageData(pageData) {
+    const path = pageData.relativePath
+      .replace(/index\.md$/, "")
+      .replace(/\.md$/, ".html");
+    const canonical =
+      `${siteUrl}${base === "/" ? "" : base.replace(/\/$/, "")}/${path}`.replace(
+        /([^:])\/\//g,
+        "$1/",
+      );
+    pageData.frontmatter.head ??= [];
+    pageData.frontmatter.head.push(
+      ["link", { rel: "canonical", href: canonical }],
+      ["meta", { property: "og:url", content: canonical }],
+    );
+  },
+
+  // ---------------------------------------------------------------------------
+  // robots.txt — written to dist on every docs:build
+  // ---------------------------------------------------------------------------
+  buildEnd: async (siteConfig) => {
+    const { join } = await import("node:path");
+    const { writeFileSync } = await import("node:fs");
+    const sitemapUrl = `${siteUrl}${base === "/" ? "" : base.replace(/\/$/, "")}/sitemap.xml`;
+    const robotsTxt = [
+      "User-agent: *",
+      "Allow: /",
+      "",
+      `Sitemap: ${sitemapUrl}`,
+      "",
+    ].join("\n");
+    writeFileSync(join(siteConfig.outDir, "robots.txt"), robotsTxt, "utf-8");
+  },
+
   locales: {
     root: {
       label: "English",
@@ -271,7 +325,9 @@ export default defineConfig({
     ["link", { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" }],
     ["link", { rel: "shortcut icon", href: "/favicon.svg" }],
     ["meta", { name: "theme-color", content: "#a78bfa" }],
+    // Open Graph
     ["meta", { property: "og:type", content: "website" }],
+    ["meta", { property: "og:site_name", content: "webserial-core" }],
     ["meta", { property: "og:title", content: "webserial-core" }],
     [
       "meta",
@@ -281,8 +337,22 @@ export default defineConfig({
           "Strongly-typed, event-driven TypeScript library for Web Serial, WebUSB, Web Bluetooth, and WebSocket.",
       },
     ],
-    ["meta", { property: "og:image", content: "/images/cover.svg" }],
+    ["meta", { property: "og:image", content: `${siteUrl}/images/cover.svg` }],
+    ["meta", { property: "og:image:width", content: "1200" }],
+    ["meta", { property: "og:image:height", content: "630" }],
+    // Twitter / X
     ["meta", { name: "twitter:card", content: "summary_large_image" }],
+    ["meta", { name: "twitter:title", content: "webserial-core" }],
+    [
+      "meta",
+      {
+        name: "twitter:description",
+        content:
+          "Strongly-typed, event-driven TypeScript library for Web Serial, WebUSB, Web Bluetooth, and WebSocket.",
+      },
+    ],
+    ["meta", { name: "twitter:image", content: `${siteUrl}/images/cover.svg` }],
+    // Indexing
     ["meta", { name: "robots", content: "index, follow" }],
   ],
 

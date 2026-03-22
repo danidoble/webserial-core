@@ -5,22 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>WebSocket — webserial-core demo</title>
-    <link rel="stylesheet" href="./demos/demo-app.css" />
     <style>
       :root {
         --accent: #f97316;
         --accent-dark: #ea580c;
-        --accent-glow: rgba(249,115,22,0.12);
+        --accent-glow: rgba(249, 115, 22, 0.12);
         --accent-badge: #fff7ed;
       }
     </style>
+    <script
+      type="module"
+      crossorigin
+      src="/demos/assets/websocket-DREvCVt-.js"
+    ></script>
+    <link
+      rel="modulepreload"
+      crossorigin
+      href="/demos/assets/demo-shared-DnvFynUr.js"
+    />
+    <link
+      rel="stylesheet"
+      crossorigin
+      href="/demos/assets/demo-shared-DLFsukQx.css"
+    />
   </head>
   <body>
-
     <!-- ── Topbar ──────────────────────────────────────────── -->
     <header class="topbar">
-      <button class="icon-btn" id="menu-btn" title="Toggle sidebar"><i data-lucide="menu"></i></button>
-      <a class="topbar-brand" href="/">
+      <button class="icon-btn" id="menu-btn" title="Toggle sidebar">
+        <i data-lucide="menu"></i>
+      </button>
+      <a class="topbar-brand" href="/demos/web-serial.html">
         <span class="brand-icon"><i data-lucide="globe"></i></span>
         <span class="brand-name">webserial-core</span>
         <span class="brand-ver">v2</span>
@@ -29,10 +44,19 @@
       <span class="flex-1"></span>
 
       <nav class="topbar-nav">
-        <a class="nav-item" href="/"><i data-lucide="zap"></i><span class="nav-lbl"> Web Serial</span></a>
-        <a class="nav-item" href="/ble.html"><i data-lucide="bluetooth"></i><span class="nav-lbl"> Bluetooth</span></a>
-        <a class="nav-item" href="/usb.html"><i data-lucide="usb"></i><span class="nav-lbl"> WebUSB</span></a>
-        <a class="nav-item active" href="/ws.html"><i data-lucide="globe"></i><span class="nav-lbl"> WebSocket</span></a>
+        <a class="nav-item" href="/demos/web-serial.html"
+          ><i data-lucide="zap"></i><span class="nav-lbl"> Web Serial</span></a
+        >
+        <a class="nav-item" href="/demos/web-bluetooth.html"
+          ><i data-lucide="bluetooth"></i
+          ><span class="nav-lbl"> Bluetooth</span></a
+        >
+        <a class="nav-item" href="/demos/web-usb.html"
+          ><i data-lucide="usb"></i><span class="nav-lbl"> WebUSB</span></a
+        >
+        <a class="nav-item active" href="/demos/websocket.html"
+          ><i data-lucide="globe"></i><span class="nav-lbl"> WebSocket</span></a
+        >
       </nav>
 
       <div class="topbar-actions">
@@ -41,23 +65,30 @@
           <span id="status-text">Disconnected</span>
         </div>
         <button class="icon-btn" id="theme-btn" title="Toggle theme">🌙</button>
-        <button class="icon-btn code-toggle" id="code-toggle-btn" title="Toggle code panel"><i data-lucide="code-2"></i></button>
+        <button
+          class="icon-btn code-toggle"
+          id="code-toggle-btn"
+          title="Toggle code panel"
+        >
+          <i data-lucide="code-2"></i>
+        </button>
         <button class="btn btn-connect" id="btn-connect">Connect</button>
-        <button class="btn btn-disconnect" id="btn-disconnect" disabled>Disconnect</button>
+        <button class="btn btn-disconnect" id="btn-disconnect" disabled>
+          Disconnect
+        </button>
       </div>
     </header>
 
     <!-- ── App layout ───────────────────────────────────────── -->
     <div class="app-layout">
-
       <!-- ── Sidebar ─────────────────────────────────────────── -->
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-scroll">
-
           <!-- Info notice -->
           <div class="sb-section">
             <div class="notice">
-              Requires the <strong>Node.js bridge server</strong> running locally:<br />
+              Requires the <strong>Node.js bridge server</strong> running
+              locally:<br />
               <code>cd demos/websocket &amp;&amp; node server.js</code><br />
               The bridge relays serial I/O over WebSocket JSON messages.
             </div>
@@ -68,8 +99,12 @@
             <div class="sb-title">Bridge URL</div>
             <div class="field">
               <label for="cfg-wsurl">WebSocket URL</label>
-              <input type="url" id="cfg-wsurl" value="ws://localhost:8080"
-                placeholder="ws://localhost:8080" />
+              <input
+                type="url"
+                id="cfg-wsurl"
+                value="ws://localhost:8080"
+                placeholder="ws://localhost:8080"
+              />
             </div>
           </div>
 
@@ -80,11 +115,21 @@
             <div class="field">
               <label for="cfg-baud">Baud Rate</label>
               <select id="cfg-baud">
-                <option>300</option><option>600</option><option>1200</option>
-                <option>2400</option><option>4800</option><option value="9600" selected>9600</option>
-                <option>14400</option><option>19200</option><option>38400</option>
-                <option>57600</option><option>115200</option><option>230400</option>
-                <option>250000</option><option>500000</option><option>1000000</option>
+                <option>300</option>
+                <option>600</option>
+                <option>1200</option>
+                <option>2400</option>
+                <option>4800</option>
+                <option value="9600" selected>9600</option>
+                <option>14400</option>
+                <option>19200</option>
+                <option>38400</option>
+                <option>57600</option>
+                <option>115200</option>
+                <option>230400</option>
+                <option>250000</option>
+                <option>500000</option>
+                <option>1000000</option>
               </select>
             </div>
 
@@ -126,7 +171,13 @@
             <div class="field-row">
               <div class="field">
                 <label for="cfg-bufsize">Buffer Size</label>
-                <input type="number" id="cfg-bufsize" value="255" min="64" max="65536" />
+                <input
+                  type="number"
+                  id="cfg-bufsize"
+                  value="255"
+                  min="64"
+                  max="65536"
+                />
               </div>
               <div class="field">
                 <label for="cfg-timeout">Cmd Timeout (ms)</label>
@@ -141,7 +192,12 @@
               </div>
               <div class="field">
                 <label for="cfg-reconnect-ms">Reconnect (ms)</label>
-                <input type="number" id="cfg-reconnect-ms" value="1500" min="500" />
+                <input
+                  type="number"
+                  id="cfg-reconnect-ms"
+                  value="1500"
+                  min="500"
+                />
               </div>
             </div>
 
@@ -159,16 +215,31 @@
             <div class="sb-title">Message Format</div>
             <div class="field">
               <label for="cfg-delim">Delimiter</label>
-              <input type="text" id="cfg-delim" value="\n" placeholder="\n \r\n | etc." />
+              <input
+                type="text"
+                id="cfg-delim"
+                value="\n"
+                placeholder="\n \r\n | etc."
+              />
             </div>
             <div class="field-row">
               <div class="field">
                 <label for="cfg-prepend">Prepend</label>
-                <input type="text" id="cfg-prepend" value="" placeholder="e.g. STX" />
+                <input
+                  type="text"
+                  id="cfg-prepend"
+                  value=""
+                  placeholder="e.g. STX"
+                />
               </div>
               <div class="field">
                 <label for="cfg-append">Append</label>
-                <input type="text" id="cfg-append" value="\n" placeholder="e.g. \n" />
+                <input
+                  type="text"
+                  id="cfg-append"
+                  value="\n"
+                  placeholder="e.g. \n"
+                />
               </div>
             </div>
           </div>
@@ -176,17 +247,22 @@
           <!-- Handshake -->
           <div class="sb-section">
             <div class="sb-title">Handshake on Connect</div>
-            <div class="notice" style="margin-bottom:6px;">
-              Sent automatically right after the WebSocket bridge connects. Leave
+            <div class="notice" style="margin-bottom: 6px">
+              Sent automatically right after the WebSocket bridge connects.
+              Leave
               <em>Command</em> empty to skip entirely.
             </div>
             <div class="field-row">
               <div class="field">
                 <label for="cfg-hs-cmd">Command to send</label>
-                <input type="text" id="cfg-hs-cmd" value=""
-                  placeholder="e.g. PING\n  or  FF 01 A3" />
+                <input
+                  type="text"
+                  id="cfg-hs-cmd"
+                  value=""
+                  placeholder="e.g. PING\n  or  FF 01 A3"
+                />
               </div>
-              <div class="field" style="flex:0 0 62px">
+              <div class="field" style="flex: 0 0 62px">
                 <label for="cfg-hs-cmd-mode">Mode</label>
                 <select id="cfg-hs-cmd-mode">
                   <option value="text" selected>TXT</option>
@@ -196,11 +272,17 @@
             </div>
             <div class="field-row">
               <div class="field">
-                <label for="cfg-hs-expect">Expected <small>(empty = no check)</small></label>
-                <input type="text" id="cfg-hs-expect" value=""
-                  placeholder="e.g. PONG  or  OK" />
+                <label for="cfg-hs-expect"
+                  >Expected <small>(empty = no check)</small></label
+                >
+                <input
+                  type="text"
+                  id="cfg-hs-expect"
+                  value=""
+                  placeholder="e.g. PONG  or  OK"
+                />
               </div>
-              <div class="field" style="flex:0 0 62px">
+              <div class="field" style="flex: 0 0 62px">
                 <label for="cfg-hs-expect-mode">Mode</label>
                 <select id="cfg-hs-expect-mode">
                   <option value="text" selected>TXT</option>
@@ -213,9 +295,11 @@
           <!-- Saved Commands -->
           <div class="sb-section">
             <div class="sb-title">Saved Commands</div>
-            <div class="notice" style="margin-bottom:6px;">Pre-defined commands to send. Use <em>HEX</em> for raw bytes.</div>
+            <div class="notice" style="margin-bottom: 6px">
+              Pre-defined commands to send. Use <em>HEX</em> for raw bytes.
+            </div>
             <div class="field-row">
-              <div class="field" style="flex:0 0 72px">
+              <div class="field" style="flex: 0 0 72px">
                 <label for="cmd-name">Name</label>
                 <input type="text" id="cmd-name" placeholder="LED ON" />
               </div>
@@ -223,7 +307,7 @@
                 <label for="cmd-value">Command</label>
                 <input type="text" id="cmd-value" placeholder="LED_ON\n" />
               </div>
-              <div class="field" style="flex:0 0 62px">
+              <div class="field" style="flex: 0 0 62px">
                 <label for="cmd-mode">Mode</label>
                 <select id="cmd-mode">
                   <option value="text" selected>TXT</option>
@@ -231,7 +315,11 @@
                 </select>
               </div>
             </div>
-            <button class="btn btn-ghost" id="cmd-add" style="width:100%;margin-top:3px;">
+            <button
+              class="btn btn-ghost"
+              id="cmd-add"
+              style="width: 100%; margin-top: 3px"
+            >
               <i data-lucide="plus"></i> Add Command
             </button>
             <div class="chip-list" id="cmd-list"></div>
@@ -240,9 +328,12 @@
           <!-- Data Listeners -->
           <div class="sb-section">
             <div class="sb-title">Data Listeners</div>
-            <div class="notice" style="margin-bottom:6px;">Patterns for <code>on('serial:data')</code> — skeleton code in download.</div>
+            <div class="notice" style="margin-bottom: 6px">
+              Patterns for <code>on('serial:data')</code> — skeleton code in
+              download.
+            </div>
             <div class="field-row">
-              <div class="field" style="flex:0 0 64px">
+              <div class="field" style="flex: 0 0 64px">
                 <label for="lst-name">Name</label>
                 <input type="text" id="lst-name" placeholder="Temp" />
               </div>
@@ -250,7 +341,7 @@
                 <label for="lst-pattern">Pattern</label>
                 <input type="text" id="lst-pattern" placeholder="TEMP:" />
               </div>
-              <div class="field" style="flex:0 0 62px">
+              <div class="field" style="flex: 0 0 62px">
                 <label for="lst-match">Match</label>
                 <select id="lst-match">
                   <option value="exact">exact</option>
@@ -260,7 +351,11 @@
                 </select>
               </div>
             </div>
-            <button class="btn btn-ghost" id="lst-add" style="width:100%;margin-top:3px;">
+            <button
+              class="btn btn-ghost"
+              id="lst-add"
+              style="width: 100%; margin-top: 3px"
+            >
               <i data-lucide="plus"></i> Add Listener
             </button>
             <div class="chip-list" id="lst-list"></div>
@@ -271,27 +366,60 @@
             <div class="sb-title">Download Code</div>
             <div class="field">
               <label for="dl-name">Class / File name</label>
-              <input type="text" id="dl-name" value="MyWsDevice" placeholder="MyWsDevice" />
+              <input
+                type="text"
+                id="dl-name"
+                value="MyWsDevice"
+                placeholder="MyWsDevice"
+              />
             </div>
             <div class="dl-lang-row">
-              <label class="dl-opt"><input type="radio" name="dl-lang" value="ts" checked /> TypeScript</label>
-              <label class="dl-opt"><input type="radio" name="dl-lang" value="js" /> JavaScript</label>
+              <label class="dl-opt"
+                ><input type="radio" name="dl-lang" value="ts" checked />
+                TypeScript</label
+              >
+              <label class="dl-opt"
+                ><input type="radio" name="dl-lang" value="js" />
+                JavaScript</label
+              >
             </div>
             <div class="dl-type-row">
-              <label class="dl-opt"><input type="radio" name="dl-type" value="file" /> Standalone file</label>
-              <label class="dl-opt"><input type="radio" name="dl-type" value="project" checked /> Full project (ZIP)</label>
+              <label class="dl-opt"
+                ><input type="radio" name="dl-type" value="file" checked />
+                Standalone file</label
+              >
+              <label class="dl-opt"
+                ><input type="radio" name="dl-type" value="project" /> Full
+                project (ZIP)</label
+              >
             </div>
             <div class="dl-btns">
-              <button class="btn btn-dl" id="dl-btn"><i data-lucide="download"></i> Download</button>
-              <button class="btn btn-ghost" id="cfg-export-btn" title="Export configuration as JSON"><i data-lucide="share"></i> Export config</button>
-              <label class="btn btn-ghost" title="Import configuration from JSON">
+              <button class="btn btn-dl" id="dl-btn">
+                <i data-lucide="download"></i> Download
+              </button>
+              <button
+                class="btn btn-ghost"
+                id="cfg-export-btn"
+                title="Export configuration as JSON"
+              >
+                <i data-lucide="share"></i> Export config
+              </button>
+              <label
+                class="btn btn-ghost"
+                title="Import configuration from JSON"
+              >
                 <i data-lucide="upload"></i> Import config
-                <input type="file" id="cfg-import-input" accept=".json" style="display:none" />
+                <input
+                  type="file"
+                  id="cfg-import-input"
+                  accept=".json"
+                  style="display: none"
+                />
               </label>
             </div>
           </div>
-
-        </div><!-- /sidebar-scroll -->
+        </div>
+        <!-- /sidebar-scroll -->
       </aside>
       <div class="sidebar-resize-handle" id="sidebar-resize-handle"></div>
 
@@ -300,23 +428,38 @@
         <div class="console-hdr">
           <div class="status-pill">
             <div class="status-dot" id="console-dot"></div>
-            <span id="console-text">Start the Node.js bridge, then click Connect</span>
+            <span id="console-text"
+              >Start the Node.js bridge, then click Connect</span
+            >
           </div>
-          <button class="btn btn-ghost" id="clear-btn"
-            style="margin-left:auto;font-size:0.7rem;padding:4px 10px;">Clear</button>
+          <button
+            class="btn btn-ghost"
+            id="clear-btn"
+            style="margin-left: auto; font-size: 0.7rem; padding: 4px 10px"
+          >
+            Clear
+          </button>
         </div>
 
         <div class="messages" id="messages">
           <div class="empty-state">
             <div class="empty-icon">🌐</div>
-            <span>Run <strong>node server.js</strong> in demos/websocket/ then connect</span>
+            <span
+              >Run <strong>node server.js</strong> in demos/websocket/ then
+              connect</span
+            >
           </div>
         </div>
 
         <div class="input-bar">
           <button class="btn btn-mode" id="mode-toggle">TXT</button>
-          <input class="msg-input" id="input-send" type="text"
-            placeholder="Type a command, e.g. LED_ON" disabled />
+          <input
+            class="msg-input"
+            id="input-send"
+            type="text"
+            placeholder="Type a command, e.g. LED_ON"
+            disabled
+          />
           <button class="btn btn-send" id="btn-send" disabled>Send</button>
         </div>
       </main>
@@ -335,14 +478,21 @@
         </div>
         <pre class="code-view" id="code-view"></pre>
       </aside>
-
-    </div><!-- /app-layout -->
+    </div>
+    <!-- /app-layout -->
 
     <footer class="app-footer">
-      © 2025 <a href="https://github.com/danidoble" style="color:inherit;text-decoration:none;">@danidoble</a> · webserial-core v2
+      © 2025
+      <a
+        href="https://github.com/danidoble"
+        style="color: inherit; text-decoration: none"
+        >@danidoble</a
+      >
+      · webserial-core v2
     </footer>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script>lucide.createIcons();</script>
-    <script type="module" src="./demos/websocket/main.ts"></script>
+    <script>
+      lucide.createIcons();
+    </script>
   </body>
 </html>

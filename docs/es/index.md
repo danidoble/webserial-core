@@ -15,6 +15,9 @@ hero:
       text: Empezar
       link: /es/guide/getting-started
     - theme: alt
+      text: "Playground"
+      link: /demos/web-serial.html
+    - theme: alt
       text: Referencia API
       link: /api/abstract-serial-device
     - theme: alt

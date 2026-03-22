@@ -4,7 +4,7 @@
     "useDefineForClassFields": true,
     "module": "ESNext",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
-    "types": ["vite/client"],
+    "types": ["vite/client", "@types/w3c-web-serial", "@types/web-bluetooth"],
     "skipLibCheck": true,
 
     /* Bundler mode */
