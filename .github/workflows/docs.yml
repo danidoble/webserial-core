@@ -40,6 +40,10 @@ jobs:
       - name: Prepare docs assets
         run: node scripts/prepare-docs.mjs
 
+      # Build the interactive demo pages (TypeScript → bundled HTML + JS assets)
+      - name: Build demo pages
+        run: node scripts/build-demos.mjs
+
       # Build the VitePress site with the correct base path for GitHub Pages.
       # The repo is at https://danidoble.github.io/webserial-core/
       - name: Build VitePress docs
