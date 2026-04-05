@@ -16,7 +16,8 @@ const theme: Theme = {
     // from onBeforeRouteChange cancels the SPA navigation and the assignment
     // to window.location triggers a full browser load of the actual file.
     router.onBeforeRouteChange = (to: string) => {
-      if (/^\/demos\/[^/]+\.html/.test(to)) {
+      // if (/^\/demos\/[^/]+\.html/.test(to)) { // this only regex some like /demos/demo1.html but not /demos/web-serial without .html
+      if (/^\/demos\/[^/]+(\.html)?/.test(to)) {
         window.location.href = to;
         return false;
       }

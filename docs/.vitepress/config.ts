@@ -215,6 +215,11 @@ export default defineConfig({
 
   base,
 
+  // Clean URLs — no .html suffix; matches Netlify/Vercel pretty-URL behaviour
+  // so canonical links and sitemap entries stay consistent with what browsers
+  // and crawlers actually resolve.
+  cleanUrls: true,
+
   // Ignore localhost links in examples / demos
   ignoreDeadLinks: [/^https?:\/\/localhost/],
 
@@ -223,15 +228,46 @@ export default defineConfig({
   // ---------------------------------------------------------------------------
   sitemap: {
     hostname: siteUrl,
+    // Add x-default hreflang pointing at the English version for every
+    // multilingual page so Google knows the default-language variant.
+    transformItems(items) {
+      // Add x-default to every multilingual page
+      const withDefaults = items.map((item) => {
+        if (item.links && item.links.length > 0) {
+          const enLink = item.links.find((l) => l.lang === "en-US");
+          if (enLink && !item.links.some((l) => l.lang === "x-default")) {
+            item.links = [
+              { lang: "x-default", url: enLink.url },
+              ...item.links,
+            ];
+          }
+        }
+        return item;
+      });
+
+      // Static demo pages are not VitePress .md files so they are not picked
+      // up automatically — append them explicitly.
+      const demoPages = [
+        "web-serial",
+        "web-usb",
+        "web-bluetooth",
+        "websocket",
+      ].map((slug) => ({
+        url: `${siteUrl}/demos/${slug}.html`,
+      }));
+
+      return [...withDefaults, ...demoPages];
+    },
   },
 
   // ---------------------------------------------------------------------------
   // Per-page canonical <link> + og:url injection
   // ---------------------------------------------------------------------------
   transformPageData(pageData) {
+    // Strip .md and drop index filename so the path matches cleanUrls output.
     const path = pageData.relativePath
       .replace(/index\.md$/, "")
-      .replace(/\.md$/, ".html");
+      .replace(/\.md$/, "");
     const canonical =
       `${siteUrl}${base === "/" ? "" : base.replace(/\/$/, "")}/${path}`.replace(
         /([^:])\/\//g,
