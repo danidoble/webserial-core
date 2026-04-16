@@ -34,6 +34,71 @@ Call this once before constructing any device.
 AbstractSerialDevice.setProvider(new WebUsbProvider());
 ```
 
+### Per-instance provider
+
+You can also set a provider for a **single device instance** by passing
+`provider` in the constructor options. This takes precedence over the
+global provider and does not affect other instances.
+
+```ts
+import {
+  AbstractSerialDevice,
+  delimiter,
+  createBluetoothProvider,
+  createWebSocketProvider,
+} from "webserial-core";
+import { WebUsbProvider } from "webserial-core";
+
+// One instance using Web Bluetooth
+class BleDevice extends AbstractSerialDevice<string> {
+  constructor() {
+    super({
+      baudRate: 9600,
+      parser: delimiter("\n"),
+      provider: createBluetoothProvider(),
+    });
+  }
+  protected async handshake(): Promise<boolean> { return true; }
+}
+
+// Another instance using WebUSB in the same app
+class UsbDevice extends AbstractSerialDevice<string> {
+  constructor() {
+    super({
+      baudRate: 115200,
+      parser: delimiter("\n"),
+      provider: new WebUsbProvider(),
+    });
+  }
+  protected async handshake(): Promise<boolean> { return true; }
+}
+
+// Yet another instance tunnelled over WebSocket
+class WsDevice extends AbstractSerialDevice<string> {
+  constructor() {
+    super({
+      baudRate: 9600,
+      parser: delimiter("\n"),
+      provider: createWebSocketProvider("ws://localhost:8080"),
+    });
+  }
+  protected async handshake(): Promise<boolean> { return true; }
+}
+
+// All three co-exist; no global provider is touched
+const ble = new BleDevice();
+const usb = new UsbDevice();
+const ws  = new WsDevice();
+```
+
+Provider resolution order per instance:
+
+| Priority | Source |
+| -------- | ------ |
+| 1 (highest) | `options.provider` passed to the constructor |
+| 2 | `AbstractSerialDevice.setProvider(...)` global static |
+| 3 (lowest) | `navigator.serial` native Web Serial API |
+
 ## Instance methods
 
 ### `connect()`

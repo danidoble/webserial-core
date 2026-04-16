@@ -56,6 +56,43 @@ const device = new MyDevice();
 await device.connect(); // Connects to the first port listed by the bridge
 ```
 
+## Per-instance usage
+
+Pass `provider` in the constructor options to scope the WebSocket provider to
+a single device instance. This is useful when different devices connect to
+different bridge servers, or when one device uses WebSocket while another uses
+a different provider in the same app.
+
+```ts
+import {
+  AbstractSerialDevice,
+  delimiter,
+  createWebSocketProvider,
+} from "webserial-core";
+
+class RemoteDevice extends AbstractSerialDevice<string> {
+  constructor(bridgeUrl: string) {
+    super({
+      baudRate: 9600,
+      parser: delimiter("\n"),
+      autoReconnect: true,
+      provider: createWebSocketProvider(bridgeUrl), // WS only for this instance
+    });
+  }
+
+  protected async handshake(): Promise<boolean> {
+    return true;
+  }
+}
+
+// Two independent instances, each with its own bridge URL
+const deviceA = new RemoteDevice("ws://pi-sensor.local:8080");
+const deviceB = new RemoteDevice("ws://pi-actuator.local:8080");
+
+await deviceA.connect();
+await deviceB.connect();
+```
+
 ## Bridge server
 
 A ready-to-use Node.js bridge server is included at

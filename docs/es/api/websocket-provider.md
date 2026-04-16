@@ -56,6 +56,43 @@ const device = new MyDevice();
 await device.connect(); // Conecta al primer puerto listado por el puente
 ```
 
+## Uso por instancia
+
+Pasa `provider` en las opciones del constructor para limitar el proveedor
+WebSocket a una sola instancia. Útil cuando diferentes dispositivos se
+conectan a distintos servidores puente, o cuando un dispositivo usa WebSocket
+y otro un proveedor diferente en la misma app.
+
+```ts
+import {
+  AbstractSerialDevice,
+  delimiter,
+  createWebSocketProvider,
+} from "webserial-core";
+
+class RemoteDevice extends AbstractSerialDevice<string> {
+  constructor(bridgeUrl: string) {
+    super({
+      baudRate: 9600,
+      parser: delimiter("\n"),
+      autoReconnect: true,
+      provider: createWebSocketProvider(bridgeUrl), // WS solo para esta instancia
+    });
+  }
+
+  protected async handshake(): Promise<boolean> {
+    return true;
+  }
+}
+
+// Dos instancias independientes, cada una con su propia URL de puente
+const deviceA = new RemoteDevice("ws://pi-sensor.local:8080");
+const deviceB = new RemoteDevice("ws://pi-actuador.local:8080");
+
+await deviceA.connect();
+await deviceB.connect();
+```
+
 ## Servidor puente
 
 Se incluye un servidor puente Node.js listo para usar en

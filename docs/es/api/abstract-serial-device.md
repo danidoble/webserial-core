@@ -34,6 +34,71 @@ Llámalo una vez antes de construir cualquier dispositivo.
 AbstractSerialDevice.setProvider(new WebUsbProvider());
 ```
 
+### Proveedor por instancia
+
+También puedes establecer un proveedor para una **única instancia** pasando
+`provider` en las opciones del constructor. Tiene precedencia sobre el
+proveedor global y no afecta a otras instancias.
+
+```ts
+import {
+  AbstractSerialDevice,
+  delimiter,
+  createBluetoothProvider,
+  createWebSocketProvider,
+} from "webserial-core";
+import { WebUsbProvider } from "webserial-core";
+
+// Una instancia usando Web Bluetooth
+class BleDevice extends AbstractSerialDevice<string> {
+  constructor() {
+    super({
+      baudRate: 9600,
+      parser: delimiter("\n"),
+      provider: createBluetoothProvider(),
+    });
+  }
+  protected async handshake(): Promise<boolean> { return true; }
+}
+
+// Otra instancia usando WebUSB en la misma app
+class UsbDevice extends AbstractSerialDevice<string> {
+  constructor() {
+    super({
+      baudRate: 115200,
+      parser: delimiter("\n"),
+      provider: new WebUsbProvider(),
+    });
+  }
+  protected async handshake(): Promise<boolean> { return true; }
+}
+
+// Otra instancia tunelizada sobre WebSocket
+class WsDevice extends AbstractSerialDevice<string> {
+  constructor() {
+    super({
+      baudRate: 9600,
+      parser: delimiter("\n"),
+      provider: createWebSocketProvider("ws://localhost:8080"),
+    });
+  }
+  protected async handshake(): Promise<boolean> { return true; }
+}
+
+// Las tres coexisten; no se toca ningún proveedor global
+const ble = new BleDevice();
+const usb = new UsbDevice();
+const ws  = new WsDevice();
+```
+
+Orden de resolución del proveedor por instancia:
+
+| Prioridad | Fuente |
+| --------- | ------ |
+| 1 (más alta) | `options.provider` pasado al constructor |
+| 2 | `AbstractSerialDevice.setProvider(...)` estático global |
+| 3 (más baja) | `navigator.serial` Web Serial API nativa |
+
 ## Métodos de instancia
 
 ### `connect()`

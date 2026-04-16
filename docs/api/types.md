@@ -43,6 +43,20 @@ interface SerialDeviceOptions<T> {
 
   /** USB vendor/product ID filters shown in the port picker. Default: [] */
   filters?: SerialPortFilter[];
+
+  /**
+   * Custom serial provider for THIS instance only (e.g. `WebUsbProvider`,
+   * `createBluetoothProvider()`, `createWebSocketProvider(...)`).
+   * Takes precedence over the global provider set via
+   * `AbstractSerialDevice.setProvider()`.
+   */
+  provider?: SerialProvider;
+
+  /**
+   * Polyfill options forwarded to `provider` when requesting or listing
+   * ports for THIS instance. Only used when `provider` is set.
+   */
+  polyfillOptions?: SerialPolyfillOptions;
 }
 ```
 

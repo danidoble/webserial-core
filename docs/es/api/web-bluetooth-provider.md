@@ -61,6 +61,43 @@ const device = new MyBleDevice();
 await device.connect(); // Abre el selector de dispositivos Web Bluetooth
 ```
 
+## Uso por instancia
+
+Pasa `provider` directamente en las opciones del constructor para limitar el
+proveedor BLE a una sola instancia. El proveedor global establecido mediante
+`AbstractSerialDevice.setProvider()` no se modifica, por lo que otros
+dispositivos en la misma app siguen usando sus propios proveedores.
+
+```ts
+import {
+  AbstractSerialDevice,
+  delimiter,
+  createBluetoothProvider,
+} from "webserial-core";
+
+class MyBleDevice extends AbstractSerialDevice<string> {
+  constructor() {
+    super({
+      baudRate: 9600,
+      parser: delimiter("\n"),
+      autoReconnect: false,
+      provider: createBluetoothProvider(), // BLE solo para esta instancia
+    });
+  }
+
+  protected async handshake(): Promise<boolean> {
+    return true;
+  }
+}
+
+const device = new MyBleDevice();
+await device.connect();
+```
+
+Esto es especialmente útil cuando una app gestiona múltiples tipos de
+dispositivos simultáneamente — por ejemplo, un dispositivo BLE junto a uno
+USB o WebSocket.
+
 ## MTU y fragmentación
 
 BLE tiene un MTU predeterminado de **20 bytes** para `writeValueWithoutResponse`. El

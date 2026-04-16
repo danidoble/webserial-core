@@ -81,6 +81,57 @@ const device = new MyDevice();
 await device.connect(); // Abre el selector de dispositivos WebUSB
 ```
 
+## Uso por instancia
+
+Pasa `provider` (y opcionalmente `polyfillOptions`) en las opciones del
+constructor para vincular `WebUsbProvider` a una sola instancia sin modificar
+el proveedor global.
+
+```ts
+import { AbstractSerialDevice, delimiter, WebUsbProvider } from "webserial-core";
+
+class MyUsbDevice extends AbstractSerialDevice<string> {
+  constructor() {
+    super({
+      baudRate: 9600,
+      parser: delimiter("\n"),
+      filters: [{ usbVendorId: 0x10c4, usbProductId: 0xea60 }],
+      provider: new WebUsbProvider({
+        usbControlInterfaceClass: 255,
+        usbTransferInterfaceClass: 255,
+      }),
+    });
+  }
+
+  protected async handshake(): Promise<boolean> {
+    return true;
+  }
+}
+
+const device = new MyUsbDevice();
+await device.connect();
+```
+
+También puedes pasar `polyfillOptions` por separado y dejar que la librería
+los reenvíe al proveedor que resuelva para esa instancia:
+
+```ts
+class MyUsbDevice extends AbstractSerialDevice<string> {
+  constructor() {
+    super({
+      baudRate: 9600,
+      parser: delimiter("\n"),
+      provider: new WebUsbProvider(),
+      polyfillOptions: { usbControlInterfaceClass: 255 },
+    });
+  }
+
+  protected async handshake(): Promise<boolean> {
+    return true;
+  }
+}
+```
+
 ## Soporte de navegadores
 
 Requiere un navegador basado en Chromium con WebUSB habilitado. No disponible en
