@@ -58,6 +58,22 @@ disconnect(): Promise<void>
 Cancels the read loop, drains the command queue, closes the port, and emits
 `serial:disconnected`. Disables auto-reconnect for this session.
 
+### `isConnected()`
+
+```ts
+isConnected(): boolean
+```
+
+Returns `true` if the port is currently open. `false` if disconnected or in the process of connecting.
+
+### `isDisconnected()`
+
+```ts
+isDisconnected(): boolean
+```
+
+Returns `true` if the port is currently closed. `false` if connected or in the process of disconnecting.
+
 ### `send(data)`
 
 ```ts

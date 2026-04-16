@@ -58,6 +58,22 @@ disconnect(): Promise<void>
 Cancela el bucle de lectura, vacía la cola de comandos, cierra el puerto y
 emite `serial:disconnected`. Deshabilita la auto-reconexión para esta sesión.
 
+### `isConnected()`
+
+```ts
+isConnected(): boolean
+```
+
+Regresa `true` si el puerto está actualmente abierto. `false` si está desconectado o en proceso de conexión.
+
+### `isDisconnected()`
+
+```ts
+isDisconnected(): boolean
+```
+
+Regresa `true` si el puerto está actualmente cerrado. `false` si está conectado o en proceso de desconexión.
+
 ### `send(data)`
 
 ```ts
