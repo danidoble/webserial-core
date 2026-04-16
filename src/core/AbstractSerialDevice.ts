@@ -233,18 +233,16 @@ export abstract class AbstractSerialDevice<T> extends SerialEventEmitter<T> {
   }
 
   /**
-   * Returns `true` if the device is currently connected and the port, reader,
-   * and writer are all valid. Note that a port may be "connected" at the
-   * Web Serial API level but still have an invalid reader/writer if the device
-   * was unplugged or is in a bad state. This method is useful for checking
-   * overall health of the connection before attempting to send data.
+   * Returns `true` if the device is currently connected and the port
+   * is open, readable, and writable. Note that a port can become
+   * disconnected at any time (e.g. unplugged), so this is not a
+   * guarantee that a subsequent read/write will succeed, but it is
+   * a useful check before attempting communication.
    * @returns `true` if the device is connected and ready for communication, `false` otherwise.
    */
   public isConnected(): boolean {
     return !!(
       this.port &&
-      this.reader &&
-      this.writer &&
       this.port.connected &&
       this.port.readable &&
       this.port.writable
