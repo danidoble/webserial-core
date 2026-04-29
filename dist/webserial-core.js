@@ -688,7 +688,7 @@ class v extends m {
     } catch (e) {
       console.error(e), this.serialErrors(e);
     } finally {
-      this.__internal__.serial.reader = null, this.__internal__.serial.input_done = null, this.__internal__.serial.output_stream = null, this.__internal__.serial.output_done = null, this.__internal__.serial.connected = !1, this.__internal__.serial.port = null, s.$dispatchChange(this);
+      this.__internal__.serial.reader = null, this.__internal__.serial.input_done = null, this.__internal__.serial.output_stream = null, this.__internal__.serial.output_done = null, this.__internal__.serial.keep_reading = !0, this.__internal__.serial.connected = !1, this.__internal__.serial.port = null, s.$dispatchChange(this);
     }
   }
   async #a(e) {

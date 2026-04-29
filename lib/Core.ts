@@ -885,6 +885,7 @@ export class Core extends Dispatcher implements ICore {
       this.__internal__.serial.output_stream = null;
       this.__internal__.serial.output_done = null;
 
+      this.__internal__.serial.keep_reading = true;
       this.__internal__.serial.connected = false;
       this.__internal__.serial.port = null;
       Devices.$dispatchChange(this);
