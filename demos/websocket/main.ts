@@ -127,7 +127,7 @@ function readCfg(): WsCfg {
   const chk = (id: string) => $<HTMLInputElement>(id)?.checked ?? false;
 
   return {
-    wsUrl: val("cfg-wsurl") || "ws://localhost:8080",
+    wsUrl: val("cfg-wsurl") || "ws://127.0.0.1:8080/?token=TOKEN",
     baudRate: num("cfg-baud", 9600),
     dataBits: num("cfg-databits", 8) as 7 | 8,
     stopBits: num("cfg-stopbits", 1) as 1 | 2,
@@ -161,7 +161,7 @@ function writeCfg(cfg: WsCfg): void {
       el.value = String(v ?? "");
     }
   };
-  set("cfg-wsurl", cfg.wsUrl ?? "ws://localhost:8080");
+  set("cfg-wsurl", cfg.wsUrl ?? "ws://127.0.0.1:8080/?token=TOKEN");
   set("cfg-baud", cfg.baudRate ?? 9600);
   set("cfg-databits", cfg.dataBits ?? 8);
   set("cfg-stopbits", cfg.stopBits ?? 1);

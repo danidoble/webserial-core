@@ -75,7 +75,7 @@ AbstractSerialDevice.setProvider(createBluetoothProvider());
 
 // WebSocket bridge (Node.js server required — see demos/websocket/README.md)
 AbstractSerialDevice.setProvider(
-  createWebSocketProvider("ws://localhost:8080"),
+  createWebSocketProvider("ws://127.0.0.1:8080/?token=TOKEN"),
 );
 ```
 

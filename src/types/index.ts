@@ -82,6 +82,10 @@ export interface SerialDeviceOptions<T> {
   bufferSize?: number;
   flowControl?: "none" | "hardware";
   commandTimeout?: number;
+  /** Maximum commands waiting to be sent. Defaults to 1024. */
+  maxQueueSize?: number;
+  /** Return true only for messages that complete the current command. Defaults to all data. */
+  isCommandResponse?: (data: T) => boolean;
   /**
    * Parser that transforms raw `Uint8Array` chunks into the device data type `T`.
    * Use `delimiter()` for line-based text protocols, `raw()` or `fixedLength()`

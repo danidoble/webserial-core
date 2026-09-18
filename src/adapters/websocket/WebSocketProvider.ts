@@ -73,8 +73,31 @@ interface PortInfo {
  */
 function waitForOpen(ws: WebSocket): Promise<void> {
   return new Promise((resolve, reject) => {
-    ws.addEventListener("open", () => resolve(), { once: true });
-    ws.addEventListener("error", (e) => reject(e), { once: true });
+    const timer = setTimeout(
+      () => fail(new Error("WebSocket connection timed out")),
+      5000,
+    );
+    const cleanup = (): void => {
+      clearTimeout(timer);
+      ws.removeEventListener("open", opened);
+      ws.removeEventListener("error", failed);
+      ws.removeEventListener("close", closed);
+    };
+    const fail = (error: Error): void => {
+      cleanup();
+      ws.close();
+      reject(error);
+    };
+    const opened = (): void => {
+      cleanup();
+      resolve();
+    };
+    const failed = (): void => fail(new Error("WebSocket connection failed"));
+    const closed = (): void =>
+      fail(new Error("WebSocket closed before opening"));
+    ws.addEventListener("open", opened);
+    ws.addEventListener("error", failed);
+    ws.addEventListener("close", closed);
   });
 }
 
@@ -86,18 +109,47 @@ function waitForOpen(ws: WebSocket): Promise<void> {
  * @returns A promise that resolves with the message `payload`.
  */
 function waitForMessage<T>(ws: WebSocket, expectedType: string): Promise<T> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => fail(new Error(`Timed out waiting for ${expectedType}`)),
+      5000,
+    );
+    const cleanup = (): void => {
+      clearTimeout(timer);
+      ws.removeEventListener("message", handler);
+      ws.removeEventListener("close", closed);
+      ws.removeEventListener("error", errored);
+    };
+    const fail = (error: Error): void => {
+      cleanup();
+      reject(error);
+    };
+    const closed = (): void => fail(new Error("WebSocket closed"));
+    const errored = (): void => fail(new Error("WebSocket failed"));
     const handler = (event: MessageEvent): void => {
-      const msg = JSON.parse(event.data as string) as {
-        type: string;
-        payload: T;
-      };
+      let msg: { type?: string; payload?: T & { message?: string } };
+      try {
+        if (typeof event.data !== "string" || event.data.length > 512 * 1024)
+          throw new Error("Invalid bridge message");
+        msg = JSON.parse(event.data);
+        if (!msg || typeof msg !== "object")
+          throw new Error("Invalid bridge message");
+      } catch {
+        fail(new Error("Invalid bridge message"));
+        return;
+      }
+      if (msg.type === "error") {
+        fail(new Error(msg.payload?.message ?? "Bridge error"));
+        return;
+      }
       if (msg.type === expectedType) {
-        ws.removeEventListener("message", handler);
-        resolve(msg.payload);
+        cleanup();
+        resolve(msg.payload as T);
       }
     };
     ws.addEventListener("message", handler);
+    ws.addEventListener("close", closed);
+    ws.addEventListener("error", errored);
   });
 }
 
@@ -111,7 +163,12 @@ function waitForMessage<T>(ws: WebSocket, expectedType: string): Promise<T> {
  * @param portInfo - Information about which serial port on the server to open.
  * @returns A `SerialPort`-compatible object.
  */
-function createWsSerialPort(ws: WebSocket, portInfo: PortInfo): SerialPort {
+function createWsSerialPort(
+  initialSocket: WebSocket | null,
+  portInfo: PortInfo,
+  serverUrl: string,
+): SerialPort {
+  let ws = initialSocket;
   let readable: ReadableStream<Uint8Array> | null = null;
   let writable: WritableStream<Uint8Array> | null = null;
 
@@ -138,6 +195,10 @@ function createWsSerialPort(ws: WebSocket, portInfo: PortInfo): SerialPort {
      * @param options - Serial port options forwarded to the bridge server.
      */
     async open(options: SerialOptions): Promise<void> {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        ws = new WebSocket(serverUrl);
+        await waitForOpen(ws);
+      }
       ws.send(
         JSON.stringify({
           type: "open",
@@ -146,16 +207,18 @@ function createWsSerialPort(ws: WebSocket, portInfo: PortInfo): SerialPort {
           dataBits: options.dataBits,
           stopBits: options.stopBits,
           parity: options.parity,
-          // Tell the bridge which parser to apply before forwarding data.
-          // Must match the parser configured on the AbstractSerialDevice instance.
-          // Options: { type: "delimiter", value: "\n" }
-          //           { type: "fixed", length: N }
-          //           { type: "raw" }
-          parser: { type: "delimiter", value: "\\n" },
+          // Framing belongs to the parser selected by AbstractSerialDevice.
+          parser: { type: "raw" },
         }),
       );
 
-      await waitForMessage(ws, "opened");
+      try {
+        await waitForMessage(ws, "opened");
+      } catch (error) {
+        ws.close();
+        throw error;
+      }
+      const activeSocket = ws;
 
       // Internal buffer: accumulates chunks that arrive before ReadableStream
       // has an active reader. Drained in the stream's start() callback.
@@ -165,23 +228,68 @@ function createWsSerialPort(ws: WebSocket, portInfo: PortInfo): SerialPort {
       let streamClosed = false;
 
       function onMessage(event: MessageEvent): void {
-        const msg = JSON.parse(event.data as string) as {
+        let msg: {
           type: string;
           bytes?: number[];
+          payload?: { message?: string };
         };
+        try {
+          if (typeof event.data !== "string" || event.data.length > 512 * 1024)
+            throw new Error("Invalid bridge message");
+          msg = JSON.parse(event.data);
+          if (!msg || typeof msg.type !== "string")
+            throw new Error("Invalid bridge message");
+          if (
+            msg.type === "data" &&
+            (!Array.isArray(msg.bytes) ||
+              msg.bytes.length > 65536 ||
+              !msg.bytes.every(
+                (byte) => Number.isInteger(byte) && byte >= 0 && byte <= 255,
+              ))
+          )
+            throw new Error("Invalid bridge bytes");
+        } catch {
+          streamClosed = true;
+          streamController?.error(new Error("Invalid bridge message"));
+          activeSocket.close();
+          return;
+        }
 
         if (msg.type === "data" && msg.bytes) {
           const chunk = new Uint8Array(msg.bytes);
           if (streamController) {
-            // Reader is active — deliver directly
+            if ((streamController.desiredSize ?? 0) <= 0) {
+              streamController.error(new Error("Bridge receive buffer full"));
+              streamClosed = true;
+              activeSocket.close();
+              return;
+            }
             streamController.enqueue(chunk);
           } else {
-            // No reader yet — buffer the chunk
+            if (
+              pendingChunks.reduce(
+                (size, pending) => size + pending.length,
+                0,
+              ) +
+                chunk.length >
+              1024 * 1024
+            ) {
+              activeSocket.close();
+              return;
+            }
             pendingChunks.push(chunk);
           }
         }
 
-        if (msg.type === "closed") {
+        if (msg.type === "error") {
+          streamClosed = true;
+          streamController?.error(
+            new Error(msg.payload?.message ?? "Bridge error"),
+          );
+          activeSocket.close();
+        }
+
+        if (msg.type === "closed" || msg.type === "disconnected") {
           streamClosed = true;
           if (streamController) {
             streamController.close();
@@ -189,32 +297,50 @@ function createWsSerialPort(ws: WebSocket, portInfo: PortInfo): SerialPort {
         }
       }
 
-      ws.addEventListener("message", onMessage);
+      activeSocket.addEventListener("message", onMessage);
+      activeSocket.addEventListener(
+        "close",
+        () => {
+          if (!streamClosed && streamController) {
+            streamClosed = true;
+            streamController.close();
+          }
+        },
+        { once: true },
+      );
 
-      readable = new ReadableStream<Uint8Array>({
-        start(controller: ReadableStreamDefaultController<Uint8Array>): void {
-          streamController = controller;
-          // Drain any buffered chunks that arrived before the reader was ready
-          for (const chunk of pendingChunks) {
-            controller.enqueue(chunk);
-          }
-          pendingChunks.length = 0;
-          // Handle the edge case where the port closed while we were buffering
-          if (streamClosed) {
-            controller.close();
-          }
+      readable = new ReadableStream<Uint8Array>(
+        {
+          start(controller: ReadableStreamDefaultController<Uint8Array>): void {
+            streamController = controller;
+            // Drain any buffered chunks that arrived before the reader was ready
+            for (const chunk of pendingChunks) {
+              controller.enqueue(chunk);
+            }
+            pendingChunks.length = 0;
+            // Handle the edge case where the port closed while we were buffering
+            if (streamClosed) {
+              controller.close();
+            }
+          },
+          cancel(): void {
+            // Remove the WS listener when the abstract device cancels the reader
+            // (disconnect, reconnect, or teardown).
+            activeSocket.removeEventListener("message", onMessage);
+            streamController = null;
+          },
         },
-        cancel(): void {
-          // Remove the WS listener when the abstract device cancels the reader
-          // (disconnect, reconnect, or teardown).
-          ws.removeEventListener("message", onMessage);
-          streamController = null;
-        },
-      });
+        { highWaterMark: 16 },
+      );
 
       writable = new WritableStream<Uint8Array>({
         write(chunk: Uint8Array): void {
-          ws.send(
+          if (
+            activeSocket.readyState !== WebSocket.OPEN ||
+            chunk.length > 65536
+          )
+            throw new Error("WebSocket unavailable or write too large");
+          activeSocket.send(
             JSON.stringify({
               type: "write",
               bytes: Array.from(chunk),
@@ -228,10 +354,12 @@ function createWsSerialPort(ws: WebSocket, portInfo: PortInfo): SerialPort {
      * Sends a `close` request to the bridge server and tears down the streams.
      */
     async close(): Promise<void> {
-      ws.send(JSON.stringify({ type: "close" }));
+      if (ws?.readyState === WebSocket.OPEN)
+        ws.send(JSON.stringify({ type: "close" }));
       readable = null;
       writable = null;
-      ws.close();
+      ws?.close();
+      ws = null;
     },
   } as SerialPort;
 }
@@ -282,17 +410,32 @@ export function createWebSocketProvider(serverUrl: string): SerialProvider {
         }),
       );
 
-      const ports = await waitForMessage<PortInfo[]>(ws, "port-list");
+      let ports: PortInfo[];
+      try {
+        ports = await waitForMessage<PortInfo[]>(ws, "port-list");
+      } catch (error) {
+        ws.close();
+        throw error;
+      }
+      if (
+        !Array.isArray(ports) ||
+        ports.length > 256 ||
+        ports.some((port) => !port || typeof port.path !== "string")
+      ) {
+        ws.close();
+        throw new Error("Invalid port list from bridge");
+      }
 
       const selected = ports[0];
       if (!selected) {
+        ws.close();
         throw new Error(
           "No ports available on the bridge server. " +
             "Make sure the Node.js server is running and a device is connected.",
         );
       }
 
-      return createWsSerialPort(ws, selected);
+      return createWsSerialPort(ws, selected, serverUrl);
     },
 
     /**
@@ -306,9 +449,21 @@ export function createWebSocketProvider(serverUrl: string): SerialProvider {
       await waitForOpen(ws);
 
       ws.send(JSON.stringify({ type: "list-ports", filters: [] }));
-      const ports = await waitForMessage<PortInfo[]>(ws, "port-list");
-
-      return ports.map((info) => createWsSerialPort(ws, info));
+      let ports: PortInfo[];
+      try {
+        ports = await waitForMessage<PortInfo[]>(ws, "port-list");
+      } catch (error) {
+        ws.close();
+        throw error;
+      }
+      ws.close();
+      if (
+        !Array.isArray(ports) ||
+        ports.length > 256 ||
+        ports.some((port) => !port || typeof port.path !== "string")
+      )
+        throw new Error("Invalid port list from bridge");
+      return ports.map((info) => createWsSerialPort(null, info, serverUrl));
     },
   };
 }

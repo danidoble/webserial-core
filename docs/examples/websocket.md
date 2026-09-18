@@ -8,7 +8,7 @@ all I/O happens server-side and is relayed via JSON messages.
 
 ```
 Browser (webserial-core)
-        │  ws://localhost:8080  JSON messages
+        │  ws://127.0.0.1:8080/?token=TOKEN  JSON messages
         ▼
 Node.js bridge (demos/websocket/server.js)
         │  serialport
@@ -22,7 +22,7 @@ Physical device
 cd demos/websocket
 npm install
 node server.js
-# Listening on ws://localhost:8080
+# Copy the token printed by the bridge into the URL below.
 ```
 
 ## 2. Browser code
@@ -35,7 +35,7 @@ import {
 } from "webserial-core";
 
 AbstractSerialDevice.setProvider(
-  createWebSocketProvider("ws://localhost:8080"),
+  createWebSocketProvider("ws://127.0.0.1:8080/?token=TOKEN"),
 );
 
 class BridgedDevice extends AbstractSerialDevice<string> {

@@ -14,6 +14,8 @@ export interface RegexParserOptions {
   regex: RegExp | string;
   /** Text encoding used to decode bytes. Defaults to `'utf-8'`. */
   encoding?: string;
+  /** Maximum characters retained without a match. Defaults to 1 MiB. */
+  maxBufferLength?: number;
 }
 
 /**
@@ -38,6 +40,9 @@ export function regexParser(options: RegexParserOptions): SerialParser<string> {
   const re =
     options.regex instanceof RegExp ? options.regex : new RegExp(options.regex);
   const encoding = options.encoding ?? "utf-8";
+  const maxBufferLength = options.maxBufferLength ?? 1024 * 1024;
+  if (!Number.isSafeInteger(maxBufferLength) || maxBufferLength < 1)
+    throw new RangeError("maxBufferLength must be a positive integer");
 
   let buffer = "";
 
@@ -45,10 +50,14 @@ export function regexParser(options: RegexParserOptions): SerialParser<string> {
     parse(chunk: Uint8Array, emit: (parsed: string) => void) {
       const decoder = new TextDecoder(encoding);
       buffer += decoder.decode(chunk);
+      if (buffer.length > maxBufferLength)
+        throw new RangeError("Regex frame exceeds maxBufferLength");
 
       const parts = buffer.split(re);
       // The last element is the incomplete segment still being accumulated.
       buffer = parts.pop() ?? "";
+      if (buffer.length > maxBufferLength)
+        throw new RangeError("Regex frame exceeds maxBufferLength");
 
       for (const part of parts) {
         emit(part);

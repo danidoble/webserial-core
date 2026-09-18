@@ -29,8 +29,10 @@ import type { SerialParser } from "../types/index.js";
  * ```
  */
 export function fixedLength(length: number): SerialParser<Uint8Array> {
-  if (length <= 0) {
-    throw new Error("FixedLengthParser: length must be greater than 0");
+  if (!Number.isSafeInteger(length) || length < 1 || length > 1024 * 1024) {
+    throw new RangeError(
+      "FixedLengthParser: length must be an integer between 1 and 1048576",
+    );
   }
 
   let buffer = new Uint8Array(0);

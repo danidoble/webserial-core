@@ -1,92 +1,96 @@
 # ws-serial-bridge
 
-Puente **WebSocket ↔ SerialPort** para usar con `AbstractSerialDevice` y el
-provider WebSocket de `webserial-core` (v2).
+A **WebSocket ↔ SerialPort** bridge for `AbstractSerialDevice` and the
+`webserial-core` WebSocket provider (v2).
 
 ```
 Browser (WebSocket provider)
-        │  ws://localhost:8080
+        │  ws://127.0.0.1:8080/?token=TOKEN
         ▼
-  Node.js server.js          ← este paquete
+  Node.js server.js          ← this package
         │  serialport
         ▼
    ESP32 / Arduino
 ```
 
-## Instalación
+## Installation
 
 ```bash
 cd ws-serial-bridge
 npm install
 ```
 
-## Uso
+## Usage
 
 ```bash
-# Arrancar el bridge
+# Start the bridge
 npm start
 
-# Modo watch (desarrollo)
+# Watch mode for development
 npm run dev
 ```
 
-El servidor escucha por defecto en `ws://localhost:8080`.
+By default, the server listens on `127.0.0.1:8080`. It accepts local development
+origins and requires the token printed at startup. Pass
+`ws://127.0.0.1:8080/?token=TOKEN` to `createWebSocketProvider()`.
+Use `BRIDGE_TOKEN`, `BRIDGE_HOST`, `BRIDGE_ORIGINS`, and `BRIDGE_PORTS` to
+configure the token, bind address, allowed origins, and allowed serial ports.
 
-## Protocolo de mensajes
+## Message protocol
 
-Todos los mensajes son JSON stringificado.
+All messages are JSON strings.
 
 ### Browser → Node
 
-| `type`       | Payload                                          | Descripción               |
-| ------------ | ------------------------------------------------ | ------------------------- |
-| `list-ports` | `{ filters: SerialPortFilter[] }`                | Lista puertos disponibles |
-| `open`       | `{ path, baudRate, dataBits, stopBits, parity }` | Abre el puerto serial     |
-| `write`      | `{ bytes: number[] }`                            | Escribe bytes al puerto   |
-| `close`      | —                                                | Cierra el puerto          |
+| `type`       | Payload                                          | Description              |
+| ------------ | ------------------------------------------------ | ------------------------ |
+| `list-ports` | `{ filters: SerialPortFilter[] }`                | Lists available ports    |
+| `open`       | `{ path, baudRate, dataBits, stopBits, parity }` | Opens a serial port      |
+| `write`      | `{ bytes: number[] }`                            | Writes bytes to the port |
+| `close`      | —                                                | Closes the port          |
 
 ### Node → Browser
 
-| `type`      | Payload               | Descripción                                |
-| ----------- | --------------------- | ------------------------------------------ |
-| `port-list` | `PortInfo[]`          | Lista de puertos (responde a `list-ports`) |
-| `opened`    | `null`                | Puerto abierto correctamente               |
-| `data`      | `{ bytes: number[] }` | Datos recibidos del dispositivo            |
-| `closed`    | `null`                | Puerto cerrado                             |
-| `error`     | `{ message: string }` | Error de puerto                            |
+| `type`      | Payload               | Description                           |
+| ----------- | --------------------- | ------------------------------------- |
+| `port-list` | `PortInfo[]`          | Port list in response to `list-ports` |
+| `opened`    | `null`                | Port opened                           |
+| `data`      | `{ bytes: number[] }` | Data received from the device         |
+| `closed`    | `null`                | Port closed                           |
+| `error`     | `{ message: string }` | Port error                            |
 
-## Firmware ESP32
+## ESP32 firmware
 
-Flashea `firmware.ino` con el Arduino IDE o PlatformIO.
+Flash `firmware.ino` with Arduino IDE or PlatformIO.
 
-### Comandos disponibles
+### Available commands
 
-| Comando        | Respuesta                               |
-| -------------- | --------------------------------------- |
-| `CONNECT\n`    | `connected\n` ← requerido por handshake |
-| `CREDITS\n`    | `created by danidoble\n`                |
-| `LED_ON\n`     | `LED:ON\n`                              |
-| `HI\n`         | `hello there\n`                         |
-| `OTHERTHING\n` | `ara ara, what are you doing?\n`        |
+| Command        | Response                                  |
+| -------------- | ----------------------------------------- |
+| `CONNECT\n`    | `connected\n` (required by the handshake) |
+| `CREDITS\n`    | `created by danidoble\n`                  |
+| `LED_ON\n`     | `LED:ON\n`                                |
+| `HI\n`         | `hello there\n`                           |
+| `OTHERTHING\n` | `ara ara, what are you doing?\n`          |
 
-### Ajustar BAUD_RATE
+### Set BAUD_RATE
 
-En el `.ino` cambia la constante y en tu `ArduinoDeviceWS` pasa el mismo valor:
+Change the constant in `firmware.ino` and pass the same value to `ArduinoDeviceWS`:
 
 ```ts
 const arduino = new ArduinoDeviceWS(9600);
 ```
 
-## Filtros de puerto
+## Port filters
 
-Puedes filtrar por VendorId/ProductId en el provider:
+You can filter by vendor ID and product ID in the provider:
 
 ```ts
-const wsProvider = createWebSocketProvider("ws://localhost:8080");
-// Los filtros se pasan en requestPort() al hacer .connect()
+const wsProvider = createWebSocketProvider("ws://127.0.0.1:8080/?token=TOKEN");
+// Pass filters to requestPort() when calling .connect().
 ```
 
-Los IDs del ESP32 varían por chip USB-serial:
+ESP32 IDs vary by USB-to-serial chip:
 
 - **CP2102**: `{ usbVendorId: 0x10C4, usbProductId: 0xEA60 }`
 - **CH340**: `{ usbVendorId: 0x1A86, usbProductId: 0x7523 }`

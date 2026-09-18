@@ -194,7 +194,7 @@ function createWebSocketProvider(serverUrl: string): SerialProvider {
 
 // Configure the provider with your Node.js server address
 // (See README.md for the Node.js server implementation)
-const wsProvider = createWebSocketProvider("ws://localhost:8080");
+const wsProvider = createWebSocketProvider("ws://127.0.0.1:8080/?token=TOKEN");
 AbstractSerialDevice.setProvider(wsProvider);
 
 /**
@@ -383,4 +383,4 @@ sendInput.addEventListener("keydown", (e) => {
 });
 
 log("🔌 WebSocket polyfill test. Native Web Serial is bypassed.", "event");
-log("Ensure the Node.js WS server is running on ws://localhost:8080", "info");
+log("Ensure the Node.js WS server is running on ws://127.0.0.1:8080/?token=TOKEN", "info");

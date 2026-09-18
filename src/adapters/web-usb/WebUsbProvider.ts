@@ -330,7 +330,7 @@ class UsbEndpointUnderlyingSink implements UnderlyingSink<Uint8Array> {
     try {
       const result = await this.device_.transferOut(
         this.endpoint_.endpointNumber,
-        chunk.buffer as ArrayBuffer,
+        chunk.slice().buffer as ArrayBuffer,
       );
       if (result.status !== "ok") {
         controller.error(result.status);

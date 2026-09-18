@@ -1,0 +1,54 @@
+name: Security checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  library:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec tsc --noEmit
+      - run: node --test tests/security.test.mjs
+      # pnpm-workspace.yaml documents one VitePress/Vite exception.
+      - run: pnpm audit --audit-level high
+
+  node-bridges:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        directory: [demos/websocket, tests/ws-serial-bridge]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci --ignore-scripts --no-audit
+        working-directory: ${{ matrix.directory }}
+      - run: npm audit --audit-level=high
+        working-directory: ${{ matrix.directory }}
+      - run: node --test server.test.js
+        if: matrix.directory == 'demos/websocket'
+        working-directory: ${{ matrix.directory }}
+
+  go-bridge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: demos/websocket-go/go.mod
+      - run: go test ./...
+        working-directory: demos/websocket-go

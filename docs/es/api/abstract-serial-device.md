@@ -79,7 +79,7 @@ class WsDevice extends AbstractSerialDevice<string> {
     super({
       baudRate: 9600,
       parser: delimiter("\n"),
-      provider: createWebSocketProvider("ws://localhost:8080"),
+      provider: createWebSocketProvider("ws://127.0.0.1:8080/?token=TOKEN"),
     });
   }
   protected async handshake(): Promise<boolean> { return true; }

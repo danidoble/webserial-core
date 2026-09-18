@@ -4,7 +4,7 @@ WebSocket ↔ SerialPort bridge for webserial-core. Same wire protocol as the No
 
 ## Requirements
 
-- Go 1.21+
+- Go 1.25.5+
 
 ## Install
 
@@ -17,6 +17,13 @@ go mod tidy
 ```sh
 go run main.go [--port 8080]
 ```
+
+The bridge listens on `127.0.0.1` by default and prints a session token at
+startup. Configure the client with `ws://127.0.0.1:8080/?token=TOKEN`, or set
+`BRIDGE_TOKEN` to reuse a token. `--host` changes the listen address.
+`BRIDGE_ORIGINS` and `BRIDGE_PORTS` are comma-separated lists of allowed web
+origins and serial paths. Remote access requires a TLS proxy (`wss://`) and
+explicit access configuration.
 
 ## Build
 

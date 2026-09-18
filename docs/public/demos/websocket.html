@@ -90,7 +90,7 @@
               Requires the <strong>Node.js bridge server</strong> running
               locally:<br />
               <code>cd demos/websocket &amp;&amp; node server.js</code><br />
-              The bridge relays serial I/O over WebSocket JSON messages.
+              Copy the token printed by the server into the Bridge URL below.
             </div>
           </div>
 
@@ -102,8 +102,8 @@
               <input
                 type="url"
                 id="cfg-wsurl"
-                value="ws://localhost:8080"
-                placeholder="ws://localhost:8080"
+                value="ws://127.0.0.1:8080/?token=TOKEN"
+                placeholder="ws://127.0.0.1:8080/?token=TOKEN"
               />
             </div>
           </div>

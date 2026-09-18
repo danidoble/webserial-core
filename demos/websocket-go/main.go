@@ -22,6 +22,9 @@
 package main
 
 import (
+	"crypto/rand"
+	"crypto/subtle"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -111,8 +114,23 @@ type PortInfo struct {
 // ─── Globals ──────────────────────────────────────────────────────────────────
 
 var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool { return true },
+	CheckOrigin: func(r *http.Request) bool {
+		for _, origin := range strings.Split(allowedOrigins, ",") {
+			if strings.TrimSpace(origin) == r.Header.Get("Origin") && origin != "" {
+				return true
+			}
+		}
+		return false
+	},
 }
+
+const maxMessageBytes = 512 * 1024
+const maxFrameBytes = 64 * 1024
+
+var bridgeToken string
+var allowedOrigins string
+var allowedPorts string
+var connectionSlots = make(chan struct{}, 8)
 
 // ─── Logger ───────────────────────────────────────────────────────────────────
 
@@ -176,6 +194,7 @@ func (c *safeConn) send(msgType string, payload interface{}, bytes []byte) {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	_ = c.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
 	_ = c.conn.WriteMessage(websocket.TextMessage, data)
 }
 
@@ -188,6 +207,7 @@ type frameReader struct {
 	cfg       *ParserConfig
 	frameCh   chan []byte
 	done      chan struct{}
+	stopOnce  sync.Once
 	disconnCh chan struct{}
 }
 
@@ -206,7 +226,7 @@ func (fr *frameReader) start() {
 }
 
 func (fr *frameReader) stop() {
-	close(fr.done)
+	fr.stopOnce.Do(func() { close(fr.done) })
 }
 
 func (fr *frameReader) readLoop() {
@@ -263,6 +283,9 @@ func (fr *frameReader) readLoop() {
 					return
 				}
 			}
+			if len(acc) > maxFrameBytes {
+				return
+			}
 		}
 	}
 
@@ -289,6 +312,9 @@ func (fr *frameReader) readLoop() {
 				break
 			}
 			end := idx + len(delimBytes)
+			if end > maxFrameBytes {
+				return
+			}
 			chunk := make([]byte, end)
 			copy(chunk, acc[:end])
 			acc = acc[end:]
@@ -297,6 +323,9 @@ func (fr *frameReader) readLoop() {
 			case <-fr.done:
 				return
 			}
+		}
+		if len(acc) > maxFrameBytes {
+			return
 		}
 	}
 }
@@ -323,6 +352,7 @@ func indexBytes(haystack, needle []byte) int {
 // ─── Connection handler ───────────────────────────────────────────────────────
 
 func handleConnection(ws *websocket.Conn) {
+	ws.SetReadLimit(maxMessageBytes)
 	conn := &safeConn{conn: ws}
 	logf("WS", "New connection")
 
@@ -384,6 +414,32 @@ func handleConnection(ws *websocket.Conn) {
 				portMu.Unlock()
 				continue
 			}
+			allowed, listErr := listPorts(nil)
+			validPath := false
+			if listErr == nil {
+				for _, candidate := range allowed {
+					if candidate.Path == msg.Path {
+						validPath = true
+						break
+					}
+				}
+			}
+			if allowedPorts != "" {
+				portAllowed := false
+				for _, path := range strings.Split(allowedPorts, ",") {
+					if strings.TrimSpace(path) == msg.Path {
+						portAllowed = true
+						break
+					}
+				}
+				validPath = validPath && portAllowed
+			}
+			if !validPath || msg.BaudRate < 0 || msg.BaudRate > 4000000 ||
+				(msg.Parser != nil && (msg.Parser.Type == "fixed" && (msg.Parser.Length < 1 || msg.Parser.Length > maxFrameBytes) || len(msg.Parser.Value) > 32)) {
+				conn.send("error", map[string]string{"message": "Invalid port or parser options"}, nil)
+				portMu.Unlock()
+				continue
+			}
 
 			baudRate := msg.BaudRate
 			if baudRate == 0 {
@@ -424,11 +480,12 @@ func handleConnection(ws *websocket.Conn) {
 			// start frame reader
 			reader = newFrameReader(port, msg.Parser)
 			reader.start()
+			activeReader := reader
 			portMu.Unlock()
 
 			// forward frames to browser; detect unexpected disconnect
 			go func() {
-				fr := reader
+				fr := activeReader
 				for chunk := range fr.frameCh {
 					logf("SERIAL", "← %d bytes", len(chunk))
 					conn.send("data", nil, chunk)
@@ -437,16 +494,27 @@ func handleConnection(ws *websocket.Conn) {
 				case <-fr.disconnCh:
 					logf("SERIAL", "Port disconnected unexpectedly")
 					portMu.Lock()
-					port = nil
-					reader = nil
+					current := reader == fr
+					if current {
+						if port != nil {
+							_ = port.Close()
+						}
+						port = nil
+						reader = nil
+					}
 					portMu.Unlock()
-					conn.send("disconnected", map[string]string{"message": "Serial port disconnected"}, nil)
+					if current {
+						conn.send("disconnected", map[string]string{"message": "Serial port disconnected"}, nil)
+					}
 				default:
 				}
 			}()
 
 		// ── write ─────────────────────────────────────────────────────────────
 		case "write":
+			if len(msg.Bytes) > maxFrameBytes {
+				break
+			}
 			portMu.Lock()
 			p := port
 			portMu.Unlock()
@@ -483,6 +551,18 @@ func handleConnection(ws *websocket.Conn) {
 // ─── HTTP handler ─────────────────────────────────────────────────────────────
 
 func wsHandler(w http.ResponseWriter, r *http.Request) {
+	select {
+	case connectionSlots <- struct{}{}:
+		defer func() { <-connectionSlots }()
+	default:
+		http.Error(w, "Too many connections", http.StatusServiceUnavailable)
+		return
+	}
+	provided := r.URL.Query().Get("token")
+	if len(provided) != len(bridgeToken) || subtle.ConstantTimeCompare([]byte(provided), []byte(bridgeToken)) != 1 {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		logf("WS", "Upgrade failed: %v", err)
@@ -496,13 +576,28 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	wsPort := flag.Int("port", 8080, "WebSocket listen port")
+	wsHost := flag.String("host", "127.0.0.1", "WebSocket listen host")
 	flag.Parse()
+	allowedOrigins = os.Getenv("BRIDGE_ORIGINS")
+	allowedPorts = os.Getenv("BRIDGE_PORTS")
+	if allowedOrigins == "" {
+		allowedOrigins = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173"
+	}
+	bridgeToken = os.Getenv("BRIDGE_TOKEN")
+	if bridgeToken == "" {
+		secret := make([]byte, 32)
+		if _, err := rand.Read(secret); err != nil {
+			log.Fatal(err)
+		}
+		bridgeToken = hex.EncodeToString(secret)
+	}
 
-	addr := fmt.Sprintf(":%d", *wsPort)
+	addr := fmt.Sprintf("%s:%d", *wsHost, *wsPort)
 
 	http.HandleFunc("/", wsHandler)
 
-	logf("SERVER", "ws-serial-bridge (Go) listening on ws://localhost%s", addr)
+	logf("SERVER", "ws-serial-bridge (Go) listening on ws://%s", addr)
+	logf("SERVER", "Connect with ?token=%s", bridgeToken)
 	logf("SERVER", "Waiting for browser connections...")
 
 	if err := http.ListenAndServe(addr, nil); err != nil {

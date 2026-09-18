@@ -49,6 +49,12 @@ node server.js
 node server.js --port 8080
 ```
 
+The server listens only on `127.0.0.1` and prints a random token at startup.
+Copy the token into the demo's **WebSocket URL** field using
+`ws://127.0.0.1:8080/?token=TOKEN`. Set `BRIDGE_TOKEN` to reuse a token across
+restarts. The demo origins (`http://localhost:5173` and
+`http://127.0.0.1:5173`) are allowed by default.
+
 ### 3. Open the demo
 
 Start the Vite dev server from the project root:
@@ -77,6 +83,9 @@ To change the parser, edit `demos/websocket/main.ts` and update the
 
 ## Security note
 
-The bridge server listens on `localhost` by default. Do **not** expose it to
-the public internet without adding authentication, as it grants raw access to
-serial ports on the host machine.
+The bridge requires a token and checks `Origin`. `BRIDGE_HOST` changes the
+listen address, `BRIDGE_ORIGINS` is a comma-separated list of allowed web
+origins, and `BRIDGE_PORTS` restricts allowed serial paths. Remote access
+requires a TLS proxy (`wss://`), a secret token, and explicit origin and port
+configuration. The token appears in the WebSocket URL, so avoid logging or
+sharing that URL.

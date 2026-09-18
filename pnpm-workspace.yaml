@@ -1,4 +1,8 @@
 allowBuilds:
   esbuild: true
+auditConfig:
+  ignoreGhsas:
+    # VitePress 1.6.4 depends on unpatched Vite 5; dev-only until upstream upgrades.
+    - GHSA-fx2h-pf6j-xcff
 minimumReleaseAgeExclude:
   - eslint@10.7.0

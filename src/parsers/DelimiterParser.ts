@@ -10,10 +10,13 @@
  */
 
 import type { SerialParser } from "../types/index.js";
+import { FramedByteBuffer } from "./FramedByteBuffer.js";
 
 export interface DelimiterOptions {
   /** Whether to include the delimiter at the end of each emitted value. Defaults to false. */
   includeDelimiter?: boolean;
+  /** Maximum bytes retained without a delimiter. Defaults to 1 MiB. */
+  maxFrameLength?: number;
 }
 
 /**
@@ -24,21 +27,6 @@ function toDelimiterBytes(char: string | Uint8Array | number[]): Uint8Array {
     return new TextEncoder().encode(char);
   }
   return char instanceof Uint8Array ? char : new Uint8Array(char);
-}
-
-/**
- * Returns the index of the first occurrence of `needle` in `haystack`,
- * or -1 if not found.
- */
-function indexOfBytes(haystack: Uint8Array, needle: Uint8Array): number {
-  if (needle.length === 0) return 0;
-  outer: for (let i = 0; i <= haystack.length - needle.length; i++) {
-    for (let j = 0; j < needle.length; j++) {
-      if (haystack[i + j] !== needle[j]) continue outer;
-    }
-    return i;
-  }
-  return -1;
 }
 
 /**
@@ -97,51 +85,55 @@ export function delimiter(
 ): SerialParser<string> | SerialParser<Uint8Array> {
   const includeDelimiter = options?.includeDelimiter ?? false;
   const delimBytes = toDelimiterBytes(char);
+  const maxFrameLength = options?.maxFrameLength ?? 1024 * 1024;
+  if (delimBytes.length === 0)
+    throw new RangeError("Delimiter must not be empty");
+  if (!Number.isSafeInteger(maxFrameLength) || maxFrameLength < 1)
+    throw new RangeError("maxFrameLength must be a positive integer");
 
   if (typeof char === "string") {
-    let buffer = new Uint8Array(0);
-    let textDecoder = new TextDecoder();
+    const buffer = new FramedByteBuffer();
 
     return {
       parse(chunk: Uint8Array, emit: (parsed: string) => void) {
-        const newBuffer = new Uint8Array(buffer.length + chunk.length);
-        newBuffer.set(buffer);
-        newBuffer.set(chunk, buffer.length);
-        buffer = newBuffer;
+        buffer.append(chunk);
 
         let index: number;
-        while ((index = indexOfBytes(buffer, delimBytes)) !== -1) {
+        while ((index = buffer.nextIndex(delimBytes)) !== -1) {
           const end = includeDelimiter ? index + delimBytes.length : index;
-          emit(textDecoder.decode(buffer.slice(0, end)));
-          textDecoder = new TextDecoder();
-          buffer = buffer.slice(index + delimBytes.length);
+          if (index > maxFrameLength)
+            throw new RangeError("Delimiter frame exceeds maxFrameLength");
+          emit(new TextDecoder().decode(buffer.slice(end)));
+          buffer.consume(index + delimBytes.length);
         }
+        if (buffer.length > maxFrameLength + delimBytes.length - 1)
+          throw new RangeError("Delimiter frame exceeds maxFrameLength");
       },
       reset() {
-        buffer = new Uint8Array(0);
-        textDecoder = new TextDecoder();
+        buffer.reset();
       },
     } as SerialParser<string>;
   }
 
-  let buffer = new Uint8Array(0);
+  const buffer = new FramedByteBuffer();
 
   return {
     parse(chunk: Uint8Array, emit: (parsed: Uint8Array) => void) {
-      const newBuffer = new Uint8Array(buffer.length + chunk.length);
-      newBuffer.set(buffer);
-      newBuffer.set(chunk, buffer.length);
-      buffer = newBuffer;
+      buffer.append(chunk);
 
       let index: number;
-      while ((index = indexOfBytes(buffer, delimBytes)) !== -1) {
+      while ((index = buffer.nextIndex(delimBytes)) !== -1) {
         const end = includeDelimiter ? index + delimBytes.length : index;
-        emit(buffer.slice(0, end));
-        buffer = buffer.slice(index + delimBytes.length);
+        if (index > maxFrameLength)
+          throw new RangeError("Delimiter frame exceeds maxFrameLength");
+        emit(buffer.slice(end));
+        buffer.consume(index + delimBytes.length);
       }
+      if (buffer.length > maxFrameLength + delimBytes.length - 1)
+        throw new RangeError("Delimiter frame exceeds maxFrameLength");
     },
     reset() {
-      buffer = new Uint8Array(0);
+      buffer.reset();
     },
   } as SerialParser<Uint8Array>;
 }

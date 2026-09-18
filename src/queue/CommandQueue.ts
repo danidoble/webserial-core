@@ -29,6 +29,10 @@ export interface CommandQueueOptions {
    * @param command - The command that timed out.
    */
   onTimeout: (command: Uint8Array) => void;
+  /** Called when writing a command fails. */
+  onError?: (error: Error, command: Uint8Array) => void;
+  /** Maximum queued commands. Defaults to 1024. */
+  maxQueueSize?: number;
 }
 
 /**
@@ -41,10 +45,13 @@ export class CommandQueue {
   public isProcessing: boolean = false;
   private isPaused: boolean = true;
   private timeoutId: ReturnType<typeof setTimeout> | null = null;
+  private activeCommand: Uint8Array | null = null;
   private readonly commandTimeout: number;
 
   private readonly onSend: (command: Uint8Array) => Promise<void>;
   private readonly onTimeout: (command: Uint8Array) => void;
+  private readonly onError?: (error: Error, command: Uint8Array) => void;
+  private readonly maxQueueSize: number;
 
   /**
    * @param options - Queue configuration. See {@link CommandQueueOptions}.
@@ -53,6 +60,10 @@ export class CommandQueue {
     this.commandTimeout = options.commandTimeout;
     this.onSend = options.onSend;
     this.onTimeout = options.onTimeout;
+    this.onError = options.onError;
+    this.maxQueueSize = options.maxQueueSize ?? 1024;
+    if (!Number.isSafeInteger(this.maxQueueSize) || this.maxQueueSize < 1)
+      throw new RangeError("maxQueueSize must be a positive integer");
   }
 
   /**
@@ -69,6 +80,8 @@ export class CommandQueue {
    * @param command - Raw bytes to enqueue.
    */
   public enqueue(command: Uint8Array): void {
+    if (this.queue.length >= this.maxQueueSize)
+      throw new RangeError("Command queue is full");
     this.queue.push(command);
     this.tryProcessNext();
   }
@@ -80,8 +93,10 @@ export class CommandQueue {
    * Call this after each expected response to keep the queue moving.
    */
   public advance(): void {
+    if (!this.isProcessing) return;
     this.clearCommandTimeout();
     this.isProcessing = false;
+    this.activeCommand = null;
     this.tryProcessNext();
   }
 
@@ -93,6 +108,7 @@ export class CommandQueue {
     this.isPaused = true;
     this.clearCommandTimeout();
     this.isProcessing = false;
+    this.activeCommand = null;
   }
 
   /**
@@ -112,6 +128,7 @@ export class CommandQueue {
     this.queue = [];
     this.clearCommandTimeout();
     this.isProcessing = false;
+    this.activeCommand = null;
   }
 
   /**
@@ -141,20 +158,29 @@ export class CommandQueue {
 
     this.isProcessing = true;
     const command = this.queue.shift()!;
+    this.activeCommand = command;
 
-    if (this.commandTimeout > 0) {
-      this.timeoutId = setTimeout(() => {
-        this.timeoutId = null;
-        this.onTimeout(command);
-        // Advance so the queue does not stall indefinitely on timeout
-        this.advance();
-      }, this.commandTimeout);
-    }
-
-    this.onSend(command).catch(() => {
-      // If send fails, advance to avoid blocking the queue indefinitely
-      this.advance();
-    });
+    this.onSend(command)
+      .then(() => {
+        if (this.activeCommand !== command) return;
+        if (this.commandTimeout === 0) {
+          this.advance();
+        } else {
+          this.timeoutId = setTimeout(() => {
+            this.timeoutId = null;
+            if (this.activeCommand !== command) return;
+            this.onTimeout(command);
+            this.advance();
+          }, this.commandTimeout);
+        }
+      })
+      .catch((cause: unknown) => {
+        this.onError?.(
+          cause instanceof Error ? cause : new Error(String(cause)),
+          command,
+        );
+        if (this.activeCommand === command) this.advance();
+      });
   }
 
   private clearCommandTimeout(): void {

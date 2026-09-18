@@ -87,6 +87,8 @@ export abstract class AbstractSerialDevice<T> extends SerialEventEmitter<T> {
       flowControl: options.flowControl ?? "none",
       filters: options.filters ?? [],
       commandTimeout: options.commandTimeout ?? 0,
+      maxQueueSize: options.maxQueueSize ?? 1024,
+      isCommandResponse: options.isCommandResponse,
       parser: options.parser,
       autoReconnect: options.autoReconnect ?? false,
       autoReconnectInterval: options.autoReconnectInterval ?? 1500,
@@ -97,6 +99,7 @@ export abstract class AbstractSerialDevice<T> extends SerialEventEmitter<T> {
 
     this.queue = new CommandQueue({
       commandTimeout: this.options.commandTimeout!,
+      maxQueueSize: this.options.maxQueueSize,
       onSend: async (command: Uint8Array) => {
         await this.writeToPort(command);
         this.emit("serial:sent", command, this);
@@ -104,11 +107,16 @@ export abstract class AbstractSerialDevice<T> extends SerialEventEmitter<T> {
       onTimeout: (command: Uint8Array) => {
         this.emit("serial:timeout", command, this);
       },
+      onError: (error: Error) => this.emit("serial:error", error, this),
     });
 
     // Auto-advance queue on data assuming full packet
-    this.on("serial:data", () => {
-      this.queue.advance();
+    this.on("serial:data", (data) => {
+      if (
+        !this.options.isCommandResponse ||
+        this.options.isCommandResponse(data)
+      )
+        this.queue.advance();
     });
 
     SerialRegistry.register(this as unknown as AbstractSerialDevice<unknown>);
@@ -328,9 +336,10 @@ export abstract class AbstractSerialDevice<T> extends SerialEventEmitter<T> {
   }
 
   public async forget(): Promise<void> {
+    const port = this.port;
     await this.disconnect();
-    if (this.port && typeof this.port.forget === "function") {
-      await this.port.forget();
+    if (port && typeof port.forget === "function") {
+      await port.forget();
     }
     SerialRegistry.unregister(this as unknown as AbstractSerialDevice<unknown>);
   }
@@ -352,6 +361,11 @@ export abstract class AbstractSerialDevice<T> extends SerialEventEmitter<T> {
   public clearQueue(): void {
     this.queue.clear();
     this.emit("serial:queue-empty", this);
+  }
+
+  /** Advance the queue when a response is verified outside the default data handler. */
+  public advanceCommandQueue(): void {
+    this.queue.advance();
   }
 
   private async writeToPort(data: Uint8Array): Promise<void> {
@@ -382,7 +396,11 @@ export abstract class AbstractSerialDevice<T> extends SerialEventEmitter<T> {
       while (true) {
         const { value, done } = await this.reader.read();
 
-        if (done) break;
+        if (done) {
+          if (this.port && !this.abortController?.signal.aborted)
+            throw new SerialReadError("Port closed unexpectedly.");
+          break;
+        }
         if (value) {
           if (this.options.parser) {
             this.options.parser.parse(value, (parsed: T) => {
@@ -492,6 +510,7 @@ export abstract class AbstractSerialDevice<T> extends SerialEventEmitter<T> {
     port: SerialPort,
     savedQueue: Uint8Array[],
   ): Promise<void> {
+    this.abortController?.abort();
     this.queue.pause();
     this.queue.clear();
     this.queue.restore(savedQueue);
@@ -532,12 +551,17 @@ export abstract class AbstractSerialDevice<T> extends SerialEventEmitter<T> {
    */
   private async runHandshakeWithTimeout(): Promise<boolean> {
     const timeout = this.options.handshakeTimeout ?? 2000;
-    return Promise.race([
-      this.handshake(),
-      new Promise<boolean>((resolve) =>
-        setTimeout(() => resolve(false), timeout),
-      ),
-    ]);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        this.handshake(),
+        new Promise<boolean>((resolve) => {
+          timer = setTimeout(() => resolve(false), timeout);
+        }),
+      ]);
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+    }
   }
 
   /**

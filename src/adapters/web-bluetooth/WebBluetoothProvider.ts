@@ -73,6 +73,9 @@ function createBleSerialPort(device: BluetoothDevice): SerialPort {
   let readable: ReadableStream<Uint8Array> | null = null;
   let writable: WritableStream<Uint8Array> | null = null;
   let gattServer: BluetoothRemoteGATTServer | null = null;
+  let notifyCharacteristic: BluetoothRemoteGATTCharacteristic | null = null;
+  let notificationHandler: ((event: Event) => void) | null = null;
+  let readController: ReadableStreamDefaultController<Uint8Array> | null = null;
 
   return {
     get readable(): ReadableStream<Uint8Array> | null {
@@ -102,6 +105,7 @@ function createBleSerialPort(device: BluetoothDevice): SerialPort {
 
       // TX characteristic — the peripheral notifies us when data arrives
       const txChar = await service.getCharacteristic(NUS_TX_CHARACTERISTIC);
+      notifyCharacteristic = txChar;
       // RX characteristic — we write here to send data to the peripheral
       const rxChar = await service.getCharacteristic(NUS_RX_CHARACTERISTIC);
 
@@ -110,12 +114,33 @@ function createBleSerialPort(device: BluetoothDevice): SerialPort {
       // Readable stream: listens for BLE notifications and enqueues each chunk
       readable = new ReadableStream<Uint8Array>({
         start(controller: ReadableStreamDefaultController<Uint8Array>): void {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          txChar.addEventListener("characteristicvaluechanged", (e: any) => {
-            const buffer = (e.target as BluetoothRemoteGATTCharacteristic)
-              .value!.buffer as ArrayBuffer;
-            controller.enqueue(new Uint8Array(buffer));
-          });
+          readController = controller;
+          notificationHandler = (event: Event): void => {
+            const value = (event.target as BluetoothRemoteGATTCharacteristic)
+              .value;
+            if (value && readController) {
+              readController.enqueue(
+                new Uint8Array(
+                  value.buffer,
+                  value.byteOffset,
+                  value.byteLength,
+                ).slice(),
+              );
+            }
+          };
+          txChar.addEventListener(
+            "characteristicvaluechanged",
+            notificationHandler,
+          );
+        },
+        cancel(): void {
+          if (notificationHandler)
+            txChar.removeEventListener(
+              "characteristicvaluechanged",
+              notificationHandler,
+            );
+          notificationHandler = null;
+          readController = null;
         },
       });
 
@@ -140,6 +165,22 @@ function createBleSerialPort(device: BluetoothDevice): SerialPort {
      * Disconnects from the GATT server and tears down the streams.
      */
     async close(): Promise<void> {
+      if (notifyCharacteristic && notificationHandler) {
+        notifyCharacteristic.removeEventListener(
+          "characteristicvaluechanged",
+          notificationHandler,
+        );
+      }
+      notificationHandler = null;
+      readController = null;
+      if (notifyCharacteristic) {
+        try {
+          await notifyCharacteristic.stopNotifications();
+        } catch {
+          /* Device may already be gone. */
+        }
+      }
+      notifyCharacteristic = null;
       if (gattServer?.connected) {
         gattServer.disconnect();
       }

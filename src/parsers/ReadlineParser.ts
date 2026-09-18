@@ -11,6 +11,7 @@
  */
 
 import type { SerialParser } from "../types/index.js";
+import { FramedByteBuffer } from "./FramedByteBuffer.js";
 
 export interface ReadlineOptions {
   /** Line delimiter. Defaults to `'\n'`. Accepts a string, Uint8Array, or number[]. */
@@ -19,21 +20,8 @@ export interface ReadlineOptions {
   includeDelimiter?: boolean;
   /** Text encoding used to decode bytes. Defaults to `'utf-8'`. */
   encoding?: string;
-}
-
-/**
- * Returns the index of the first occurrence of `needle` in `haystack`,
- * or -1 if not found.
- */
-function indexOfBytes(haystack: Uint8Array, needle: Uint8Array): number {
-  if (needle.length === 0) return 0;
-  outer: for (let i = 0; i <= haystack.length - needle.length; i++) {
-    for (let j = 0; j < needle.length; j++) {
-      if (haystack[i + j] !== needle[j]) continue outer;
-    }
-    return i;
-  }
-  return -1;
+  /** Maximum bytes retained without a delimiter. Defaults to 1 MiB. */
+  maxFrameLength?: number;
 }
 
 /**
@@ -57,6 +45,9 @@ function indexOfBytes(haystack: Uint8Array, needle: Uint8Array): number {
 export function readline(options?: ReadlineOptions): SerialParser<string> {
   const encoding = options?.encoding ?? "utf-8";
   const includeDelimiter = options?.includeDelimiter ?? false;
+  const maxFrameLength = options?.maxFrameLength ?? 1024 * 1024;
+  if (!Number.isSafeInteger(maxFrameLength) || maxFrameLength < 1)
+    throw new RangeError("maxFrameLength must be a positive integer");
 
   const rawDelim = options?.delimiter ?? "\n";
   let delimBytes: Uint8Array;
@@ -66,26 +57,29 @@ export function readline(options?: ReadlineOptions): SerialParser<string> {
     delimBytes =
       rawDelim instanceof Uint8Array ? rawDelim : new Uint8Array(rawDelim);
   }
+  if (delimBytes.length === 0)
+    throw new RangeError("Delimiter must not be empty");
 
-  let buffer = new Uint8Array(0);
+  const buffer = new FramedByteBuffer();
 
   return {
     parse(chunk: Uint8Array, emit: (parsed: string) => void) {
-      const newBuffer = new Uint8Array(buffer.length + chunk.length);
-      newBuffer.set(buffer);
-      newBuffer.set(chunk, buffer.length);
-      buffer = newBuffer;
+      buffer.append(chunk);
 
       let index: number;
-      while ((index = indexOfBytes(buffer, delimBytes)) !== -1) {
+      while ((index = buffer.nextIndex(delimBytes)) !== -1) {
         const end = includeDelimiter ? index + delimBytes.length : index;
+        if (index > maxFrameLength)
+          throw new RangeError("Readline frame exceeds maxFrameLength");
         const decoder = new TextDecoder(encoding);
-        emit(decoder.decode(buffer.slice(0, end)));
-        buffer = buffer.slice(index + delimBytes.length);
+        emit(decoder.decode(buffer.slice(end)));
+        buffer.consume(index + delimBytes.length);
       }
+      if (buffer.length > maxFrameLength + delimBytes.length - 1)
+        throw new RangeError("Readline frame exceeds maxFrameLength");
     },
     reset() {
-      buffer = new Uint8Array(0);
+      buffer.reset();
     },
   };
 }

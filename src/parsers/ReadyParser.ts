@@ -16,6 +16,8 @@ export interface ReadyParserOptions {
   delimiter: string | Uint8Array | number[];
   /** Called once when the ready sequence is detected. */
   onReady?: () => void;
+  /** Maximum bytes retained while waiting. Defaults to 1 MiB. */
+  maxBufferLength?: number;
 }
 
 /**
@@ -65,6 +67,11 @@ export function readyParser(
     delimBytes =
       rawDelim instanceof Uint8Array ? rawDelim : new Uint8Array(rawDelim);
   }
+  if (delimBytes.length === 0)
+    throw new RangeError("Ready delimiter must not be empty");
+  const maxBufferLength = options.maxBufferLength ?? 1024 * 1024;
+  if (!Number.isSafeInteger(maxBufferLength) || maxBufferLength < 1)
+    throw new RangeError("maxBufferLength must be a positive integer");
 
   let ready = false;
   let buffer = new Uint8Array(0);
@@ -80,6 +87,11 @@ export function readyParser(
       newBuffer.set(buffer);
       newBuffer.set(chunk, buffer.length);
       buffer = newBuffer;
+      if (
+        buffer.length > maxBufferLength &&
+        indexOfBytes(buffer, delimBytes) === -1
+      )
+        throw new RangeError("Ready buffer exceeds maxBufferLength");
 
       const index = indexOfBytes(buffer, delimBytes);
       if (index === -1) return;

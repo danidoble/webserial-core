@@ -1,29 +1,93 @@
 /**
- * ws-serial-bridge/server.js
+ * demos/websocket/server.js
  *
- * Puente WebSocket ↔ SerialPort para AbstractSerialDevice.
- * Compatible con el WebSocket provider que ya tienes en tu librería.
+ * WebSocket ↔ SerialPort bridge for webserial-core.
+ * Runs on Node.js (v18+). Browsers connect via WebSocketProvider and this
+ * server relays bytes to/from a physical serial port.
  *
- * Instalar dependencias:
- *   npm install ws serialport @serialport/parser-delimiter @serialport/parser-readline @serialport/parser-length-prefixed
+ * Install dependencies:
+ *   npm install
  *
- * Uso:
- *   node server.js [--port 8080] [--baud 9600]
+ * Usage:
+ *   node server.js [--port 8080]
+ *
+ * Wire protocol (JSON over WebSocket):
+ *   Browser → Server: list-ports | open | write | close
+ *   Server → Browser: port-list  | opened | data | closed | error
  */
 
 import { WebSocketServer } from "ws";
 import { SerialPort, ByteLengthParser, DelimiterParser } from "serialport";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 
-// ─── CLI args ────────────────────────────────────────────────────────────────
-
-// eslint-disable-next-line no-undef
+// ─── CLI arguments ───────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
-const WS_PORT = parseInt(args[args.indexOf("--port") + 1] ?? "8080");
+const WS_PORT = parseInt(args[args.indexOf("--port") + 1] ?? "8080", 10);
+const WS_HOST = process.env.BRIDGE_HOST ?? "127.0.0.1";
+const BRIDGE_TOKEN =
+  process.env.BRIDGE_TOKEN ?? randomBytes(32).toString("hex");
+const ALLOWED_ORIGINS = new Set(
+  (
+    process.env.BRIDGE_ORIGINS ??
+    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173"
+  )
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+);
+const MAX_MESSAGE_BYTES = 512 * 1024;
+const MAX_FRAME_BYTES = 64 * 1024;
+const MAX_BACKLOG_BYTES = 1024 * 1024;
+const MAX_CONNECTIONS = 8;
+const ALLOWED_PORTS = new Set(
+  (process.env.BRIDGE_PORTS ?? "")
+    .split(",")
+    .map((path) => path.trim())
+    .filter(Boolean),
+);
+
+if (
+  !Number.isInteger(WS_PORT) ||
+  WS_PORT < 1 ||
+  WS_PORT > 65535 ||
+  !BRIDGE_TOKEN
+) {
+  throw new Error("Invalid bridge port or token");
+}
+
+function authorized(info) {
+  if (!ALLOWED_ORIGINS.has(info.origin)) return false;
+  const supplied =
+    new URL(info.req.url, "http://localhost").searchParams.get("token") ?? "";
+  const expected = Buffer.from(BRIDGE_TOKEN);
+  const actual = Buffer.from(supplied);
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+
+function validBytes(value) {
+  return (
+    Array.isArray(value) &&
+    value.length <= MAX_FRAME_BYTES &&
+    value.every((byte) => Number.isInteger(byte) && byte >= 0 && byte <= 255)
+  );
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+/**
+ * Send a JSON message to the browser client.
+ *
+ * @param {import('ws').WebSocket} ws
+ * @param {string} type
+ * @param {unknown} payload
+ * @param {number[]} [bytes]
+ */
 function send(ws, type, payload, bytes = []) {
   if (ws.readyState === ws.OPEN) {
+    if (ws.bufferedAmount > MAX_BACKLOG_BYTES) {
+      ws.close(1009, "Client too slow");
+      return;
+    }
     ws.send(JSON.stringify({ type, payload, bytes }));
   }
 }
@@ -33,32 +97,35 @@ function log(tag, msg) {
   console.log(`[${ts}] [${tag}] ${msg}`);
 }
 
-// ─── Crear parser según config del browser ───────────────────────────────────
-//
-// Recibe el campo `parser` del mensaje `open` y devuelve un Transform stream
-// de @serialport/parser-* que acumula datos hasta tener una trama completa.
-//
-// Configs soportadas:
-//   { type: "delimiter", value: "\n" }    ← una línea por evento (default)
-//   { type: "delimiter", value: "\r\n" }  ← CRLF
-//   { type: "fixed",     length: N }      ← N bytes exactos por evento
-//   { type: "raw" }                       ← sin acumulación, pasa todo directo
-//
+// ─── Parser factory ──────────────────────────────────────────────────────────
+
+/**
+ * Build a serialport Transform parser from the config sent in the `open` message.
+ *
+ * Supported configs:
+ *   { type: "delimiter", value: "\\n" }  — one event per delimited frame (default)
+ *   { type: "fixed",     length: N }     — one event per N-byte block
+ *   { type: "raw" }                      — no accumulation, pass through raw bytes
+ *
+ * @param {{ type?: string, value?: string, length?: number } | null} parserConfig
+ * @returns {import('@serialport/stream').Transform | null}
+ */
 function createParser(parserConfig) {
   if (!parserConfig || parserConfig.type === "raw") {
-    return null; // sin parser — usar port.on("data") directamente
+    return null; // raw mode — listen directly on port "data" events
   }
 
   if (parserConfig.type === "fixed") {
     const length = parserConfig.length;
-    if (!length || length < 1)
-      throw new Error("fixed parser requiere length >= 1");
+    if (!Number.isSafeInteger(length) || length < 1 || length > MAX_FRAME_BYTES)
+      throw new Error("fixed parser length out of range");
     return new ByteLengthParser({ length });
   }
 
-  // "delimiter" es el default (incluye el caso "readline" con \n)
+  // "delimiter" is the default
   const raw = parserConfig.value ?? "\n";
-  // Convertir escapes tipo \n, \r a bytes reales
+  if (typeof raw !== "string" || raw.length === 0 || raw.length > 32)
+    throw new Error("delimiter length out of range");
   const delimiter = raw
     .replace(/\\n/g, "\n")
     .replace(/\\r/g, "\r")
@@ -67,20 +134,22 @@ function createParser(parserConfig) {
   return new DelimiterParser({ delimiter, includeDelimiter: true });
 }
 
-// ─── Listar puertos ──────────────────────────────────────────────────────────
+// ─── Port discovery ──────────────────────────────────────────────────────────
 
+/**
+ * Return a list of connected serial ports, optionally filtered by vendor/product ID.
+ *
+ * @param {Array<{ usbVendorId?: number, usbProductId?: number }>} filters
+ */
 async function listPorts(filters = []) {
   const all = await SerialPort.list();
+  // Only include ports with recognized USB IDs
+  const recognized = all.filter((p) => p.vendorId && p.productId);
 
-  // only with vendorId and productId
-  const filtered = all.filter((p) => {
-    return p.vendorId && p.productId;
-  });
+  if (!filters.length) return recognized;
 
-  if (!filters.length) return filtered;
-
-  return filtered.filter((p) => {
-    return filters.some((f) => {
+  return recognized.filter((p) =>
+    filters.some((f) => {
       const matchVendor =
         !f.usbVendorId ||
         p.vendorId?.toLowerCase() ===
@@ -90,29 +159,43 @@ async function listPorts(filters = []) {
         p.productId?.toLowerCase() ===
           f.usbProductId.toString(16).padStart(4, "0").toLowerCase();
       return matchVendor && matchProduct;
-    });
-  });
+    }),
+  );
 }
 
-// ─── Manejar cada conexión WS ─────────────────────────────────────────────────
+// ─── Per-connection handler ───────────────────────────────────────────────────
 
+/**
+ * Handle one browser WebSocket connection.
+ *
+ * @param {import('ws').WebSocket} ws
+ */
 async function handleConnection(ws) {
-  log("WS", "Nueva conexión entrante");
+  log("WS", "New connection");
 
   /** @type {SerialPort | null} */
   let port = null;
+  let opening = false;
 
   ws.on("message", async (raw) => {
     let msg;
     try {
       msg = JSON.parse(raw.toString());
     } catch {
-      log("WS", "Mensaje no-JSON ignorado");
+      log("WS", "Non-JSON message ignored");
+      return;
+    }
+    if (!msg || typeof msg !== "object" || typeof msg.type !== "string") {
+      ws.close(1007, "Invalid message");
       return;
     }
 
-    // ── list-ports ──────────────────────────────────────────────────────────
+    // ── list-ports ───────────────────────────────────────────────────────────
     if (msg.type === "list-ports") {
+      if (!Array.isArray(msg.filters ?? [])) {
+        ws.close(1007, "Invalid filters");
+        return;
+      }
       try {
         const ports = await listPorts(msg.filters ?? []);
         const payload = ports.map((p) => ({
@@ -122,7 +205,7 @@ async function handleConnection(ws) {
         }));
         log(
           "SERIAL",
-          `Puertos disponibles: ${payload.map((p) => p.path).join(", ") || "ninguno"}`,
+          `Available ports: ${payload.map((p) => p.path).join(", ") || "none"}`,
         );
         send(ws, "port-list", payload);
       } catch (err) {
@@ -132,81 +215,152 @@ async function handleConnection(ws) {
       return;
     }
 
-    // ── open ──────────────// eslint-disable-next-line no-undef──────────────────────────────────────────────────
+    // ── open ─────────────────────────────────────────────────────────────────
     if (msg.type === "open") {
-      if (port?.isOpen) {
-        send(ws, "opened", null);
+      if (port || opening) {
+        send(ws, "error", { message: "A port is already opening or open" });
         return;
       }
+      opening = true;
 
-      port = new SerialPort({
-        path: msg.path,
-        baudRate: msg.baudRate ?? 9600,
-        dataBits: msg.dataBits ?? 8,
-        stopBits: msg.stopBits ?? 1,
-        parity: msg.parity ?? "none",
-        autoOpen: false,
-      });
+      let allowed;
+      try {
+        allowed = await listPorts();
+      } catch (error) {
+        opening = false;
+        send(ws, "error", { message: error.message });
+        return;
+      }
+      if (ws.readyState !== ws.OPEN) {
+        opening = false;
+        return;
+      }
+      if (
+        typeof msg.path !== "string" ||
+        !allowed.some((entry) => entry.path === msg.path) ||
+        (ALLOWED_PORTS.size > 0 && !ALLOWED_PORTS.has(msg.path)) ||
+        !Number.isSafeInteger(msg.baudRate ?? 9600) ||
+        (msg.baudRate ?? 9600) < 1
+      ) {
+        opening = false;
+        send(ws, "error", { message: "Port or baud rate not allowed" });
+        return;
+      }
+      let parser;
+      try {
+        parser = createParser(msg.parser);
+      } catch (error) {
+        opening = false;
+        send(ws, "error", { message: error.message });
+        return;
+      }
+      if (
+        (msg.dataBits !== undefined && ![7, 8].includes(msg.dataBits)) ||
+        (msg.stopBits !== undefined && ![1, 2].includes(msg.stopBits)) ||
+        (msg.parity !== undefined &&
+          !["none", "odd", "even"].includes(msg.parity))
+      ) {
+        opening = false;
+        send(ws, "error", { message: "Invalid serial options" });
+        return;
+      }
+      try {
+        port = new SerialPort({
+          path: msg.path,
+          baudRate: msg.baudRate ?? 9600,
+          dataBits: msg.dataBits ?? 8,
+          stopBits: msg.stopBits ?? 1,
+          parity: msg.parity ?? "none",
+          autoOpen: false,
+        });
+      } catch (error) {
+        opening = false;
+        send(ws, "error", { message: error.message });
+        return;
+      }
+      opening = false;
+      const activePort = port;
 
-      port.open((err) => {
+      activePort.open((err) => {
         if (err) {
+          if (port === activePort) port = null;
           log("ERROR", `open ${msg.path}: ${err.message}`);
           send(ws, "error", { message: err.message });
           return;
         }
-        log("SERIAL", `Puerto abierto: ${msg.path} @ ${msg.baudRate} baud`);
+        if (ws.readyState !== ws.OPEN) {
+          activePort.close();
+          if (port === activePort) port = null;
+          return;
+        }
+        log("SERIAL", `Port opened: ${msg.path} @ ${msg.baudRate} baud`);
         send(ws, "opened", null);
       });
 
-      // ── Configurar fuente de datos con o sin parser ──────────────────────
-      //
-      // Con parser (delimiter / fixed): el parser acumula bytes hasta tener
-      // una trama completa y emite un único evento "data" por trama.
-      //
-      // Sin parser (raw / undefined): se reenvía cada chunk tal como llega.
-      //
-      let dataSource; // puede ser el port crudo o un parser pipe
+      // Attach parser (or use the raw port) as the data source
+      let dataSource;
+      let frameBytes = 0;
       try {
-        const parser = createParser(msg.parser);
         if (parser) {
-          dataSource = port.pipe(parser);
-          log("SERIAL", `Parser activo: ${JSON.stringify(msg.parser)}`);
+          activePort.on("data", (chunk) => {
+            frameBytes += chunk.length;
+            if (frameBytes > MAX_FRAME_BYTES) ws.close(1009, "Frame too large");
+          });
+          dataSource = activePort.pipe(parser);
+          log("SERIAL", `Parser: ${JSON.stringify(msg.parser)}`);
         } else {
-          dataSource = port;
-          log("SERIAL", "Sin parser — modo raw");
+          dataSource = activePort;
+          log("SERIAL", "No parser — raw mode");
         }
       } catch (parserErr) {
+        if (activePort.isOpen) activePort.close();
+        if (port === activePort) port = null;
         log("ERROR", `createParser: ${parserErr.message}`);
         send(ws, "error", { message: parserErr.message });
         return;
       }
 
-      // Reenviar tramas completas al browser
+      // Forward complete frames to the browser
       dataSource.on("data", (chunk) => {
+        frameBytes = 0;
+        if (chunk.length > MAX_FRAME_BYTES) {
+          ws.close(1009, "Frame too large");
+          return;
+        }
         log("SERIAL", `← ${chunk.length} bytes`);
         send(ws, "data", null, Array.from(chunk));
       });
+      if (dataSource !== activePort) {
+        dataSource.on("error", (error) => {
+          send(ws, "error", { message: error.message });
+          ws.close(1011, "Parser error");
+        });
+      }
 
-      port.on("error", (err) => {
+      activePort.on("error", (err) => {
         log("ERROR", `serial: ${err.message}`);
         send(ws, "error", { message: err.message });
       });
 
-      port.on("close", () => {
-        log("SERIAL", "Puerto cerrado");
+      activePort.on("close", () => {
+        if (port === activePort) port = null;
+        log("SERIAL", "Port closed");
         send(ws, "closed", null);
       });
 
       return;
     }
 
-    // ── write ───────────────────────────────────────────────────────────────
+    // ── write ─────────────────────────────────────────────────────────────────
     if (msg.type === "write") {
       if (!port?.isOpen) {
-        log("WS", "write ignorado — puerto no abierto");
+        log("WS", "write ignored — port not open");
         return;
       }
-      // eslint-disable-next-line no-undef
+      if (!validBytes(msg.bytes)) {
+        ws.close(1007, "Invalid bytes");
+        return;
+      }
       const buf = Buffer.from(msg.bytes);
       log("SERIAL", `→ ${buf.length} bytes`);
       port.write(buf, (err) => {
@@ -215,22 +369,19 @@ async function handleConnection(ws) {
       return;
     }
 
-    // ── close ───────────────────────────────────────────────────────────────
+    // ── close ─────────────────────────────────────────────────────────────────
     if (msg.type === "close") {
-      if (port?.isOpen) {
-        port.close();
-      }
+      if (port?.isOpen) port.close();
       return;
     }
 
-    log("WS", `Tipo desconocido: ${msg.type}`);
+    log("WS", `Unknown message type: ${msg.type}`);
   });
 
   ws.on("close", () => {
-    log("WS", "Conexión cerrada — limpiando recursos");
-    if (port?.isOpen) {
-      port.close();
-    }
+    opening = false;
+    log("WS", "Connection closed — cleaning up");
+    if (port?.isOpen) port.close();
     port = null;
   });
 
@@ -239,19 +390,32 @@ async function handleConnection(ws) {
   });
 }
 
-// ─── Iniciar servidor ─────────────────────────────────────────────────────────
+// ─── Start server ─────────────────────────────────────────────────────────────
 
-const wss = new WebSocketServer({ port: WS_PORT });
-
-wss.on("listening", () => {
-  log("SERVER", `ws-serial-bridge escuchando en ws://localhost:${WS_PORT}`);
-  log("SERVER", "Esperando conexiones del browser...");
+const wss = new WebSocketServer({
+  host: WS_HOST,
+  port: WS_PORT,
+  maxPayload: MAX_MESSAGE_BYTES,
+  verifyClient(info, done) {
+    done(authorized(info), 403, "Forbidden");
+  },
 });
 
-wss.on("connection", handleConnection);
+wss.on("listening", () => {
+  log("SERVER", `ws-serial-bridge listening on ws://${WS_HOST}:${WS_PORT}`);
+  log("SERVER", `Connect with ?token=${BRIDGE_TOKEN}`);
+  log("SERVER", "Waiting for browser connections...");
+});
+
+wss.on("connection", (ws) => {
+  if (wss.clients.size > MAX_CONNECTIONS) {
+    ws.close(1013, "Too many connections");
+    return;
+  }
+  handleConnection(ws);
+});
 
 wss.on("error", (err) => {
   console.error(`[SERVER-ERR] ${err.message}`);
-  // eslint-disable-next-line no-undef
   process.exit(1);
 });

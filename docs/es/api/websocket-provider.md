@@ -23,7 +23,7 @@ createWebSocketProvider(serverUrl: string): SerialProvider
 
 | Parámetro   | Tipo     | Descripción                                                     |
 | ----------- | -------- | --------------------------------------------------------------- |
-| `serverUrl` | `string` | URL WebSocket del servidor puente (ej. `"ws://localhost:8080"`) |
+| `serverUrl` | `string` | URL WebSocket del servidor puente (ej. `"ws://127.0.0.1:8080/?token=TOKEN"`) |
 
 ## Uso
 
@@ -35,7 +35,7 @@ import {
 } from "webserial-core";
 
 AbstractSerialDevice.setProvider(
-  createWebSocketProvider("ws://localhost:8080"),
+  createWebSocketProvider("ws://127.0.0.1:8080/?token=TOKEN"),
 );
 
 class MyDevice extends AbstractSerialDevice<string> {

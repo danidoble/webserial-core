@@ -22,6 +22,8 @@
 import type { SerialParser } from "../types/index.js";
 
 export interface SlipOptions {
+  /** Maximum decoded packet size. Defaults to 1 MiB. */
+  maxFrameLength?: number;
   /** Custom START byte. When set, each packet must begin with this byte. */
   START?: number;
   /** Escape byte for START. Defaults to `0xDB` (same as ESC). */
@@ -67,6 +69,9 @@ const DEFAULTS = {
  * ```
  */
 export function slipDecoder(options?: SlipOptions): SerialParser<Uint8Array> {
+  const maxFrameLength = options?.maxFrameLength ?? 1024 * 1024;
+  if (!Number.isSafeInteger(maxFrameLength) || maxFrameLength < 1)
+    throw new RangeError("maxFrameLength must be a positive integer");
   const END = options?.END ?? DEFAULTS.END;
   const ESC = options?.ESC ?? DEFAULTS.ESC;
   const ESC_END = options?.ESC_END ?? DEFAULTS.ESC_END;
@@ -100,6 +105,11 @@ export function slipDecoder(options?: SlipOptions): SerialParser<Uint8Array> {
           }
           escaping = false;
           continue;
+        }
+
+        if (buffer.length >= maxFrameLength) {
+          buffer = [];
+          throw new RangeError("SLIP frame exceeds maxFrameLength");
         }
 
         if (escaping) {
@@ -150,7 +160,10 @@ export function slipDecoder(options?: SlipOptions): SerialParser<Uint8Array> {
  * // device.send(encoded);
  * ```
  */
-export function slipEncode(data: Uint8Array, options?: SlipOptions): Uint8Array {
+export function slipEncode(
+  data: Uint8Array,
+  options?: SlipOptions,
+): Uint8Array {
   const END = options?.END ?? DEFAULTS.END;
   const ESC = options?.ESC ?? DEFAULTS.ESC;
   const ESC_END = options?.ESC_END ?? DEFAULTS.ESC_END;

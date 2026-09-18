@@ -24,7 +24,14 @@ export default defineConfig([
   },
   {
     // Node.js scripts (e.g. scripts/*.mjs, vite.config.ts, etc.)
-    files: ["scripts/**/*.{js,mjs,cjs}", "vite.config.ts", "eslint.config.ts"],
+    files: [
+      "scripts/**/*.{js,mjs,cjs}",
+      "demos/websocket/*.{js,mjs,cjs}",
+      "tests/ws-serial-bridge/*.{js,mjs,cjs}",
+      "tests/*.test.mjs",
+      "vite.config.ts",
+      "eslint.config.ts",
+    ],
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
   },
   tseslint.configs.recommended,
